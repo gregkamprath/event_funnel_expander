@@ -1,0 +1,16 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+
+# Sample or generated HTML you don't want committed
+sample_html/
+
+# Optional environment files (if any)
+.env
