@@ -1,27 +1,29 @@
 const { createStealthContext } = require('./stealth');
 const { humanDelay } = require('./helpers');
 
-async function fetchPagesHtml(urls) {
+async function fetchPageHtml(url) {
     const { browser, context } = await createStealthContext();
-    const results = [];
+    const results = { url };
 
-    for (const link of urls) {
+    try {
         const page = await context.newPage();
-        try {
-            await page.goto(link, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await humanDelay();
-            const html = await page.content();
-            results.push({ url: link, html });
-        } catch (err) {
-            results.push({ url: link, error: err.message });
-        } finally {
-            await page.close();
-        }
-        await new Promise(res => setTimeout(res, 1500));
-    }
 
-    await browser.close();
+        // Add random delay before navigating
+        await humanDelay(500, 1500);
+
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+        // Add random delay after navigation
+        await humanDelay(500, 1500);
+
+        results.html = await page.content();
+        await page.close();
+    } catch (err) {
+        results.error = err.message;
+    } finally {
+        await browser.close();
+    }
     return results;
 }
 
-module.exports = { fetchPagesHtml };
+module.exports = { fetchPageHtml };
