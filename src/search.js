@@ -1,7 +1,7 @@
-const { createStealthContext } = require('./stealth');
-const { humanDelay } = require('./helpers');
+import { createStealthContext } from './stealth.js'
+import { humanDelay } from './helpers.js'
 
-async function searchDuckDuckGo(query, limit = 3) {
+export async function searchDuckDuckGo(query, limit = 3) {
     const { browser, context } = await createStealthContext();
     const page = await context.newPage();
 
@@ -30,5 +30,3 @@ async function searchDuckDuckGo(query, limit = 3) {
     await browser.close();
     return links;
 }
-
-module.exports = { searchDuckDuckGo };

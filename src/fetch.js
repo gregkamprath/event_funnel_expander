@@ -1,7 +1,7 @@
-const { createStealthContext } = require('./stealth');
-const { humanDelay } = require('./helpers');
+import { createStealthContext } from './stealth.js'
+import { humanDelay } from './helpers.js'
 
-async function fetchPageHtml(url) {
+export async function fetchPageHtml(url) {
     const { browser, context } = await createStealthContext();
     const results = { url };
 
@@ -25,5 +25,3 @@ async function fetchPageHtml(url) {
     }
     return results;
 }
-
-module.exports = { fetchPageHtml };

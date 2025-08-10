@@ -1,17 +1,23 @@
-const { searchDuckDuckGo } = require('./search');
-const { fetchPageHtml } = require('./fetch');
+import pLimit from 'p-limit';
+import { searchDuckDuckGo } from './search.js';
+import { fetchPageHtml } from './fetch.js';
 
 (async () => {
     const query = 'Zscaler - Zenith Live 2025 Las Vegas June';
     const links = await searchDuckDuckGo(query, 3);
     console.log('Search results:', links);
 
-    // Map each link to a fetch promise
-    const fetchPromises = links.map(async (link) => {
+    // Create a limiter allowing 2 concurrent fetches, for example
+    const limit = pLimit(2);
+
+    // Wrap each fetch call with the concurrency limiter
+    const fetchPromises = links.map(link => 
+        limit(async () => {
         console.log(`Fetching: ${link}`);
         const result = await fetchPageHtml(link);
         return result;
-    });
+        })
+    );
 
     // Wait for all fetches to finish
     const pages = await Promise.all(fetchPromises);
@@ -23,18 +29,4 @@ const { fetchPageHtml } = require('./fetch');
         console.log(`Fetched HTML for ${url}:\n`, html.substring(0, 500));
         }
     }
-
-    // for (const link of links) {
-    //     console.log(`\nFetching: ${link}`);
-    //     const { url, html, error } = await fetchPageHtml(link);
-
-    //     if (error) {
-    //         console.error(`Error fetching ${url}:`, error);
-    //     } else {
-    //         console.log(`Fetched HTML for ${url}:\n`, html.substring(0, 500));
-    //     }
-
-    //     // Small delay between requests
-    //     await new Promise(res => setTimeout(res, 1500));
-    // }
 })();

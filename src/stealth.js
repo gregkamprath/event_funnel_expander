@@ -1,7 +1,7 @@
-const { chromium } = require('playwright');
-const { userAgents } = require('./config');
+import { chromium } from 'playwright';
+import { userAgents } from './config.js';
 
-async function createStealthContext() {
+export async function createStealthContext() {
     const ua = userAgents[Math.floor(Math.random() * userAgents.length)];
     const viewport = {
         width: 1280 + Math.floor(Math.random() * 50),
@@ -37,5 +37,3 @@ async function createStealthContext() {
 
     return { browser, context };
 }
-
-module.exports = { createStealthContext };
