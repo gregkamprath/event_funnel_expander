@@ -1,8 +1,20 @@
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 import pLimit from 'p-limit';
 import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
+import { queryLLM } from './llm.js';
 
 (async () => {
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    console.log('Loaded API Key the first time:', OPENAI_API_KEY ? 'Yes' : 'No');
+
+    // const prompt = 'Summarize the main points of the following HTML content in 30 words or less: <html><h1>Example</h1></html>';
+    // const result = await queryLLM(prompt);
+    // console.log('LLM response:', result);
+
     const query = 'Zscaler - Zenith Live 2025 Las Vegas June';
     const links = await searchDuckDuckGo(query, 3);
     console.log('Search results:', links);

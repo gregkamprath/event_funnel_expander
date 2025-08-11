@@ -6,7 +6,16 @@ export async function searchDuckDuckGo(query, limit = 3) {
     const page = await context.newPage();
 
     await page.goto('https://duckduckgo.com/', { waitUntil: 'domcontentloaded' });
-    await page.fill('input[name="q"]', query);
+
+    await page.focus('input[name="q"]');
+    await page.fill('input[name="q"]', ''); // clear input just in case
+
+    for (const char of query) {
+        await page.keyboard.type(char);
+        await page.waitForTimeout(80 + Math.random() * 40);
+    }
+
+
     await humanDelay();
     await page.keyboard.press('Enter');
 

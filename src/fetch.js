@@ -1,5 +1,5 @@
 import { createStealthContext } from './stealth.js'
-import { humanDelay } from './helpers.js'
+import { humanDelay, autoScroll } from './helpers.js'
 
 export async function fetchPageHtml(url) {
     const { browser, context } = await createStealthContext();
@@ -12,6 +12,7 @@ export async function fetchPageHtml(url) {
         await humanDelay(500, 1500);
 
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await autoScroll(page);
 
         // Add random delay after navigation
         await humanDelay(500, 1500);
