@@ -1,10 +1,9 @@
 import fetch from 'node-fetch';
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
 export async function queryLLM(prompt) {
-  console.log('Loaded API Key:', OPENAI_API_KEY ? 'Yes' : 'No');
-
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  console.log('Loaded API Key', OPENAI_API_KEY ? 'Yes' : 'No');
+  
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {

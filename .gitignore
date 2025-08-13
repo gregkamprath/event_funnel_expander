@@ -14,3 +14,4 @@ sample_html/
 
 # Optional environment files (if any)
 .env
+src/.env
