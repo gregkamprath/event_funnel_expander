@@ -15,7 +15,6 @@ export async function searchDuckDuckGo(query, limit = 3) {
         await page.waitForTimeout(80 + Math.random() * 40);
     }
 
-
     await humanDelay();
     await page.keyboard.press('Enter');
 

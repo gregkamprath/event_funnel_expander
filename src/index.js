@@ -5,14 +5,15 @@ import path from 'path';
 import pLimit from 'p-limit';
 import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
-import { queryLLM } from './llm.js';
+import { queryLLM, countTokens, truncateToTokenLimit } from './llm.js';
+
+import { loadPrompt } from "./prompts.js";
+
+const extractionPrompt = loadPrompt("extract_event_info");
 
 (async () => {
-    const prompt = 'Summarize the main points of the following HTML content in 30 words or less: <html><h1>Example</h1></html>';
-    // const result = await queryLLM(prompt);
-    // console.log('LLM response:', result);
-
-    const query = 'Zscaler - Zenith Live 2025 Las Vegas June';
+    // const query = 'Zscaler - Zenith Live 2025 Las Vegas June';
+    const query = 'Haystack Connect Conference WASHINGTON May';
     const links = await searchDuckDuckGo(query, 3);
     console.log('Search results:', links);
 
@@ -33,12 +34,23 @@ import { queryLLM } from './llm.js';
 
     for (const { url, markdown, error } of pages) {
         if (error) {
-        console.error(`Error fetching ${url}:`, error);
+            console.error(`Error fetching ${url}:`, error);
         } else {
-        console.log(`Sending cleaned content from ${url} to LLM...`);
-        const prompt = `Summarize the main points of the following webpage:\n\n${markdown}`;
-        console.log(markdown.substring(0,1000));
-        // console.log(`Fetched HTML for ${url}:\n`, html.substring(0, 500));
+            console.log(`\n======================================================== \nSending cleaned content from ${url} to LLM...`);
+            
+            console.log('markdown type:', typeof markdown);
+            if (typeof markdown !== 'string') {
+                console.warn('Warning: markdown is not a string:', markdown);
+            } else {
+                const MAX_INPUT_TOKENS = 2500;
+
+                const prePrompt = `${extractionPrompt}\n\n${markdown}`;
+
+                const truncatedPrompt = truncateToTokenLimit(prePrompt, MAX_INPUT_TOKENS);                
+                const result = await queryLLM(truncatedPrompt);
+
+                console.log('LLM response:', result);
+            }
         }
     }
 })();

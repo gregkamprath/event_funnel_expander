@@ -1,9 +1,48 @@
 import fetch from 'node-fetch';
+import { encoding_for_model } from 'tiktoken';
+
+export function countTokens(text, model = 'gpt-4') {
+  const enc = encoding_for_model(model);
+  const tokenCount = enc.encode(text).length;
+  enc.free();  // release WASM memory if applicable
+  return tokenCount;
+}
+
+export function truncateToTokenLimit(text, maxTokens, model = "gpt-4") {
+  if (text == null) text = "";
+  text = String(text);
+
+  const enc = encoding_for_model(model);
+  try {
+    let tokens = enc.encode(text);
+
+    if (tokens.length <= maxTokens) {
+      return text; // already within limit
+    }
+
+    // progressively chop down the text until it's under the limit
+    let truncated = text;
+    while (tokens.length > maxTokens && truncated.length > 0) {
+      // Chop more aggressively if text is very long
+      const ratio = maxTokens / tokens.length;
+      const newLength = Math.floor(truncated.length * ratio * 0.9); // 0.9 as safety margin
+      truncated = truncated.slice(0, newLength);
+
+      tokens = enc.encode(truncated);
+    }
+
+    return truncated;
+  } finally {
+    enc.free();
+  }
+}
 
 export async function queryLLM(prompt) {
+  console.log(`Input tokens: ${countTokens(prompt, 'gpt-4')}`);
+
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   console.log('Loaded API Key', OPENAI_API_KEY ? 'Yes' : 'No');
-  
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -25,5 +64,9 @@ export async function queryLLM(prompt) {
   }
 
   const data = await response.json();
-  return data.choices[0].message.content;
+
+  const output = data.choices[0].message.content;
+  console.log(`Output tokens: ${countTokens(output, 'gpt-4')}`);
+
+  return output;
 }

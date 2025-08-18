@@ -4,21 +4,22 @@ import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
 
 function htmlToMarkdown(html) {
-  const $ = cheerio.load(html);
+    const $ = cheerio.load(html);
 
-  // Remove noise / non-content elements
-  $('script, style, noscript, header, footer, nav, aside, iframe, form, ads, svg').remove();
+    // Remove noise / non-content elements
+    $('script, style, noscript, header, footer, nav, aside, iframe, form, ads, svg').remove();
 
-  // Extract cleaned HTML body
-  const cleanedHtml = $('body').html() || '';
+    // Extract cleaned HTML body
+    const cleanedHtml = $('body').html() || '';
 
-  // Convert to Markdown
-  const turndownService = new TurndownService({
-    headingStyle: 'atx',
-    bulletListMarker: '-'
-  });
+    // Convert to Markdown
+    const turndownService = new TurndownService({
+        headingStyle: 'atx',
+        bulletListMarker: '-'
+    });
 
-  return turndownService.turndown(cleanedHtml);
+    // return cleanedHtml;
+    return turndownService.turndown(cleanedHtml);
 }
 
 export async function fetchPageHtml(url) {
