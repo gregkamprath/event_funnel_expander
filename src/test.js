@@ -16,12 +16,13 @@ const extractionPrompt = loadPrompt("extract_event_info");
 (async () => {
     // const query = 'Zscaler - Zenith Live 2025 Las Vegas June';
     // const query = 'Haystack Connect Conference WASHINGTON May';
-    const query = 'UniPro Partners Plus Conference 2025 ORLANDO July';
-    const links = await searchDuckDuckGo(query, 3);
-    console.log('Search results:', links);
+    // const query = 'UniPro Partners Plus Conference 2025 ORLANDO July';
+    // const links = await searchDuckDuckGo(query, 3);
+    // console.log('Search results:', links);
 
     // Create a limiter allowing 2 concurrent fetches, for example
     const limit = pLimit(2);
+    let links = ['https://eventnow.encoreglobal.com/landingpage/newexhibit/index/?v=cd67d37d-360b-e411-9406-00155dcfc111'];
 
     // Wrap each fetch call with the concurrency limiter
     const fetchPromises = links.map(link => 
@@ -45,12 +46,13 @@ const extractionPrompt = loadPrompt("extract_event_info");
             if (typeof markdown !== 'string') {
                 console.warn('Warning: markdown is not a string:', markdown);
             } else {
-                const MAX_INPUT_TOKENS = 32000;
+                // const MAX_INPUT_TOKENS = 32000;
 
-                const prePrompt = `${extractionPrompt}\n\n${markdown}`;
+                // const prePrompt = `${extractionPrompt}\n\n${markdown}`;
 
-                const truncatedPrompt = truncateToTokenLimit(prePrompt, MAX_INPUT_TOKENS);                
-                const result = await queryLLM(truncatedPrompt);
+                // const truncatedPrompt = truncateToTokenLimit(prePrompt, MAX_INPUT_TOKENS);                
+                // const result = await queryLLM(truncatedPrompt);
+                const result = "Placeholder"
 
                 console.log('LLM response:', result);
 

@@ -11,7 +11,10 @@ npm-debug.log*
 
 # Sample or generated HTML you don't want committed
 sample_html/
+outputs/
 
 # Optional environment files (if any)
 .env
 src/.env
+
+debug.png

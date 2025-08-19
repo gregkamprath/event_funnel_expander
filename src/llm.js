@@ -1,14 +1,14 @@
 import fetch from 'node-fetch';
 import { encoding_for_model } from 'tiktoken';
 
-export function countTokens(text, model = 'gpt-4') {
+export function countTokens(text, model = 'gpt-4.1') {
   const enc = encoding_for_model(model);
   const tokenCount = enc.encode(text).length;
   enc.free();  // release WASM memory if applicable
   return tokenCount;
 }
 
-export function truncateToTokenLimit(text, maxTokens, model = "gpt-4") {
+export function truncateToTokenLimit(text, maxTokens, model = "gpt-4.1") {
   if (text == null) text = "";
   text = String(text);
 
@@ -38,10 +38,17 @@ export function truncateToTokenLimit(text, maxTokens, model = "gpt-4") {
 }
 
 export async function queryLLM(prompt) {
-  console.log(`Input tokens: ${countTokens(prompt, 'gpt-4')}`);
+  console.log(`Input tokens: ${countTokens(prompt, 'gpt-4.1')}`);
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-  console.log('Loaded API Key', OPENAI_API_KEY ? 'Yes' : 'No');
+  if (!OPENAI_API_KEY) {
+    throw new Error("Missing OPENAI_API_KEY in environment");
+  }
+
+  // Count input tokens
+  const enc = encoding_for_model("gpt-4.1");
+  const inputTokens = enc.encode(prompt).length;
+  console.log(`Input tokens: ${inputTokens}`);
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -50,7 +57,7 @@ export async function queryLLM(prompt) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4',  // or 'gpt-3.5-turbo'
+      model: "gpt-4.1",
       messages: [
         { role: 'user', content: prompt }
       ],
@@ -60,13 +67,20 @@ export async function queryLLM(prompt) {
   });
 
   if (!response.ok) {
-    throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    const err = await response.text();
+    throw new Error(`OpenAI API error: ${response.status} ${response.statusText}\n${err}`);
   }
 
   const data = await response.json();
 
-  const output = data.choices[0].message.content;
-  console.log(`Output tokens: ${countTokens(output, 'gpt-4')}`);
+  const output = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!output) {
+    throw new Error("No content returned from OpenAI API");
+  }
+
+  // Count output tokens
+  const outputTokens = enc.encode(output).length;
+  console.log(`Output tokens: ${outputTokens}`);
 
   return output;
 }
