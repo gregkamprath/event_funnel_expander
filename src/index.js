@@ -42,6 +42,7 @@ const extractionPrompt = loadPrompt("extract_event_info");
             console.log(`\n======================================================== \nSending cleaned content from ${url} to LLM...`);
             
             console.log('markdown type:', typeof markdown);
+
             if (typeof markdown !== 'string') {
                 console.warn('Warning: markdown is not a string:', markdown);
             } else {
@@ -55,20 +56,19 @@ const extractionPrompt = loadPrompt("extract_event_info");
                 console.log('LLM response:', result);
 
                 // ---------- Save output to file ----------
-                // ISO timestamp for filenames (replace colons with dashes so it's filesystem-safe)
                 const timestamp = new Date().toISOString().replace(/:/g, "-");
-
-                // sanitize filename (remove special chars from URL)
                 const safeName = url.replace(/[^a-z0-9]/gi, "_").slice(0, 80); // prevent overly long names
-                const filePath = path.join("outputs", `${timestamp + "_" + safeName}.txt`);
+                fs.mkdirSync("outputs", { recursive: true }); // ensure output dir exists
 
-                const content = `${result}\n==============================\n${markdown}`;
+                // Markdown file
+                const mdFilePath = path.join("outputs", `${timestamp + "_" + safeName}.md`);
+                fs.writeFileSync(mdFilePath, markdown, "utf-8");
+                console.log(`Saved Markdown to ${mdFilePath}`);
 
-                // ensure output dir exists
-                fs.mkdirSync("outputs", { recursive: true });
-                fs.writeFileSync(filePath, content, "utf-8");
-
-                console.log(`Saved results to ${filePath}`);
+                // JSON file
+                const jsonFilePath = path.join("outputs", `${timestamp + "_" + safeName}.json`);
+                fs.writeFileSync(jsonFilePath, result, "utf-8");
+                console.log(`Saved JSON to ${jsonFilePath}`);
             }
         }
     }
