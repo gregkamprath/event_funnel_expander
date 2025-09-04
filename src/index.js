@@ -22,12 +22,10 @@ const extractionPrompt = loadPrompt("extract_event_info");
         throw new Error(`Failed to fetch event: ${response.statusText}`);
     }
 
-    const text = await response.text();
-    console.log("Response text preview:", text.slice(0, 200));
-
     let event;
     try {
         event = await response.json();
+        console.log("Event:" , event);
     } catch (err) {
         const text = await response.text();
         throw new Error(`Expected JSON but got:\n${text.slice(0, 500)}`);
