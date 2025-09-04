@@ -14,9 +14,26 @@ import { loadPrompt } from "./prompts.js";
 const extractionPrompt = loadPrompt("extract_event_info");
 
 (async () => {
-    // const query = 'Zscaler - Zenith Live 2025 Las Vegas June';
-    // const query = 'Haystack Connect Conference WASHINGTON May';
-    const query = 'UniPro Partners Plus Conference 2025 ORLANDO July';
+// Fetch event object
+    const response = await fetch("https://floating-plains-26538.herokuapp.com/events/next_to_auto_expand", {
+        headers: { "Accept": "application/json" }
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to fetch event: ${response.statusText}`);
+    }
+
+    const text = await response.text();
+    console.log("Response text preview:", text.slice(0, 200));
+
+    let event;
+    try {
+        event = await response.json();
+    } catch (err) {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got:\n${text.slice(0, 500)}`);
+    }
+
+    const query = event.search_string;
     const links = await searchDuckDuckGo(query, 3);
     console.log('Search results:', links);
 
