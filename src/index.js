@@ -54,10 +54,8 @@ const extractionPrompt = loadPrompt("extract_event_info");
         if (error) {
             console.error(`Error fetching ${url}:`, error);
         } else {
-            console.log(`\n======================================================== \nSending cleaned content from ${url} to LLM...`);
+            console.log(`\n======================================================== \nSending cleaned content from \n${url} \nto LLM...`);
             
-            console.log('markdown type:', typeof markdown);
-
             if (typeof markdown !== 'string') {
                 console.warn('Warning: markdown is not a string:', markdown);
             } else {
@@ -67,8 +65,6 @@ const extractionPrompt = loadPrompt("extract_event_info");
 
                 const truncatedPrompt = truncateToTokenLimit(prePrompt, MAX_INPUT_TOKENS);                
                 const result = await queryLLM(truncatedPrompt);
-
-                console.log('LLM response:', result);
 
                 // ---------- Save output to file ----------
                 const timestamp = new Date().toISOString().replace(/:/g, "-");

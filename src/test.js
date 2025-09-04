@@ -14,23 +14,21 @@ import { loadPrompt } from "./prompts.js";
 const extractionPrompt = loadPrompt("extract_event_info");
 
 (async () => {
-    // const query = 'Zscaler - Zenith Live 2025 Las Vegas June';
-    // const query = 'Haystack Connect Conference WASHINGTON May';
-    // const query = 'UniPro Partners Plus Conference 2025 ORLANDO July';
-    // const links = await searchDuckDuckGo(query, 3);
-    // console.log('Search results:', links);
-
-    // Create a limiter allowing 2 concurrent fetches, for example
     const limit = pLimit(2);
-    let links = ['https://eventnow.encoreglobal.com/landingpage/newexhibit/index/?v=cd67d37d-360b-e411-9406-00155dcfc111'];
-    // let links = ['https://duckduckgo.com/'];
+
+    // Use CLI args if provided, otherwise fall back to default
+    const argLinks = process.argv.slice(2);
+    let links = argLinks.length > 0
+        ? argLinks
+        : ['https://eventnow.encoreglobal.com/landingpage/newexhibit/index/?v=cd67d37d-360b-e411-9406-00155dcfc111'];
+
 
     // Wrap each fetch call with the concurrency limiter
     const fetchPromises = links.map(link => 
         limit(async () => {
-        console.log(`Fetching: ${link}`);
-        const result = await fetchPageHtml(link);
-        return result;
+            console.log(`Fetching: ${link}`);
+            const result = await fetchPageHtml(link);
+            return result;
         })
     );
 
@@ -41,9 +39,7 @@ const extractionPrompt = loadPrompt("extract_event_info");
         if (error) {
             console.error(`Error fetching ${url}:`, error);
         } else {
-            console.log(`\n======================================================== \nSending cleaned content from ${url} to LLM...`);
-
-            console.log('markdown type:', typeof markdown);
+            console.log(`\n======================================================== \nSending cleaned content from \n${url} \nto LLM...`);
 
             if (typeof markdown !== 'string') {
                 console.warn('Warning: markdown is not a string:', markdown);
@@ -54,8 +50,6 @@ const extractionPrompt = loadPrompt("extract_event_info");
 
                 const truncatedPrompt = truncateToTokenLimit(prePrompt, MAX_INPUT_TOKENS);                
                 const result = await queryLLM(truncatedPrompt);
-
-                console.log('LLM response:', result);
 
                 // ---------- Save output to file ----------
                 const timestamp = new Date().toISOString().replace(/:/g, "-");

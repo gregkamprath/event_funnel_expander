@@ -57,7 +57,7 @@ export async function fetchPageHtml(url) {
             html = await page.content();
         }
 
-        console.log('Inner HTML:', html?.slice(0,500));
+        // console.log('Inner HTML:', html?.slice(0,500));
 
         const markdown = html ? htmlToMarkdown(html) : null;
 
