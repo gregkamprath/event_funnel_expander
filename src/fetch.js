@@ -8,7 +8,8 @@ function htmlToMarkdown(html) {
     const $ = cheerio.load(html);
 
     // Remove noise / non-content elements
-    $('script, style, noscript, header, footer, nav, aside, iframe, form, ads, svg').remove();
+    $('script, style, noscript, header, nav, aside, iframe, form, ads, svg').remove();
+    // $('script, style, noscript, header, footer, nav, aside, iframe, form, ads, svg').remove();
 
     // Extract cleaned HTML body
     const cleanedHtml = $('body').html() || '';
@@ -32,9 +33,12 @@ export async function fetchPageHtml(url) {
 
         await humanDelay(500, 1500);
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
-        await humanDelay(5000, 6000);
+        await humanDelay(3000, 5000);
         await autoScroll(page);
-        await humanDelay(5000, 6000);
+        await humanDelay(3000, 5000);
+        await autoScroll(page);
+        await humanDelay(3000, 5000);
+
 
         // decide based on domain
         const domain = new URL(url).hostname;
