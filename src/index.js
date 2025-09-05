@@ -61,7 +61,32 @@ const extractionPrompt = loadPrompt("extract_event_info");
             } else {
                 const MAX_INPUT_TOKENS = 32000;
 
-                const prePrompt = `${extractionPrompt}\n\n${markdown}`;
+                const targetEventContext = `
+                We are trying to find references to a target event, which may have partial or mixed information. Here is the target event:
+
+                {
+                    "event_name": "${event.event_name}",
+                    "event_name_casual": "${event.event_name_casual}",
+                    "organization_name": "${event.organization_name}",
+                    "start_date": "${event.start_date}",
+                    "end_date": "${event.end_date}",
+                    "city": "${event.city}",
+                    "state": "${event.state}",
+                    "venue": "${event.venue}"
+                }
+
+                For each extracted event, include an additional boolean field:
+                "matches_target_event": true | false
+
+                Rules for matching:
+                - Return true if the extracted event likely refers to the same event as the target event.
+                - Sometimes the extracted dates may be similar to the target event but not identical.
+                - Sometimes the target event name may include the organization name as well as the event name, or may be just the organization name instead of the event name.
+                - If the extracted event is unlikely to refer to the target event then return false.
+                `;
+
+                // const prePrompt = `${extractionPrompt}\n\n${markdown}`;
+                const prePrompt = `${extractionPrompt}\n\n${targetEventContext}\n\n${markdown}`;
 
                 const truncatedPrompt = truncateToTokenLimit(prePrompt, MAX_INPUT_TOKENS);                
                 const result = await queryLLM(truncatedPrompt);
