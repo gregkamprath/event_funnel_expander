@@ -38,7 +38,7 @@ const BASE_URL = process.env.BASE_URL;
     let matchesFound = 0;
 
     for (const url of links) {
-        if (matchesFound >= 1) {
+        if (matchesFound >= 3) {
             console.log("✅ Found 3 matching events — stopping early.");
             break;
         }
@@ -68,21 +68,23 @@ const BASE_URL = process.env.BASE_URL;
 
         // Save outputs
         const { mdFilePath, jsonFilePath } = saveOutputs(url, markdown, result);
-        console.log(`Saved Markdown to ${mdFilePath}`);
-        console.log(`Saved JSON to ${jsonFilePath}`);
-        await getOrCreateLink(url).then(console.log).catch(console.error);
+        // console.log(`Saved Markdown to ${mdFilePath}`);
+        // console.log(`Saved JSON to ${jsonFilePath}`);
+        await getOrCreateLink(url).catch(console.error);
 
 
         // Count matches
         try {
-            // const parsed = JSON.parse(result);
             const parsed = result;
 
             if (Array.isArray(parsed)) {
-                const matchingEvents = parsed.filter(ev => ev.matches_target_event === true);
+                let matchesInPage = 0;
 
-                for (const ev of matchingEvents) {
+                for (const ev of parsed) {
                     try {
+                        // Track matches for logging
+                        if (ev.matches_target_event) matchesInPage++;
+
                         // First make sure link exists in Rails
                         const link = await getOrCreateLink(url);
 
@@ -101,22 +103,20 @@ const BASE_URL = process.env.BASE_URL;
                             state: ev.state,
                             venue: ev.venue,
                             // attendees: ev.attendees,
-                            event_id: event.id,   // from the Rails "target event"
+                            event_id: ev.matches_target_event ? event.id : null, // only set if matches
                             link_id: link.id,     // from getOrCreateLink
                             link_for_more_information: ev.link_for_more_information
                         };
 
                         const savedReading = await createReading(readingData);
-                        console.log("Saved Reading:", savedReading.id);
+                        console.log(`Saved Reading: ${savedReading.id} (${ev.matches_target_event ? 'matched' : 'not matched'})`);
                     } catch (err) {
                         console.error("Error saving reading:", err.message);
                     }
                 }
 
-                matchesFound += matchingEvents.length;
-                console.log(
-                    `Matches found in this page: ${matchingEvents.length}, total so far: ${matchesFound}`
-                );
+                matchesFound += matchesInPage;
+                console.log(`Matches found in this page: ${matchesInPage}, total so far: ${matchesFound}`);
             }
         } catch (err) {
             console.warn("Could not parse JSON result:", err.message);
