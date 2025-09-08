@@ -8,9 +8,11 @@ export function saveOutputs(url, markdown, result) {
 
   const mdFilePath = path.join("outputs", `${timestamp}_${safeName}.md`);
   fs.writeFileSync(mdFilePath, markdown, "utf-8");
+  
 
   const jsonFilePath = path.join("outputs", `${timestamp}_${safeName}.json`);
-  fs.writeFileSync(jsonFilePath, result, "utf-8");
+  fs.writeFileSync(jsonFilePath, JSON.stringify(result, null, 2), "utf-8");
+
 
   return { mdFilePath, jsonFilePath };
 }
