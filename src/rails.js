@@ -19,6 +19,37 @@ export async function getOrCreateLink(url) {
   return data;
 }
 
+export async function getOrCreateAccount(name, abbr, website) {
+    if (!name) return null; // no org info provided
+
+    const url = `${BASE_URL}/accounts/find_or_create`;
+    const payload = {
+        account: {
+            account_name: name,
+            account_name_abbr: abbr || null,
+            website: website || null
+        }
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to find/create account: ${response.statusText}`);
+        }
+
+        return await response.json(); // should return the account object
+    } catch (err) {
+        console.error("Error in getOrCreateAccount:", err.message);
+        return null;
+    }
+}
+
+
 export async function createReading(readingData) {
   const response = await fetch(`${BASE_URL}/readings.json`, {
     method: "POST",
