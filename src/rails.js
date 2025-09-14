@@ -78,6 +78,26 @@ export async function checkReadingMatch(readingId, eventId) {
   return response.json();
 }
 
+export async function eventMergeReadings(eventId) {
+  const response = await fetch(
+    `${BASE_URL}/events/${eventId}/merge_readings`,
+    {
+      headers: {
+        "Accept": "application/json"
+      }
+    }
+  );
+  
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Failed to merge readings: ${response.status} - ${errText}`);
+  }
+
+  return response.json();
+}
+
+
+
 export async function updateEventAutoExpanded(eventId, value = true) {
   const response = await fetch(`${BASE_URL}/events/${eventId}.json`, {
     method: "PATCH",

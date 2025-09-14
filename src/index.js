@@ -6,8 +6,8 @@ import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
 import { queryLLM, truncateToTokenLimit, buildEventExtractionPrompt } from './llm.js';
 import { loadPrompt } from "./prompts.js";
-import { saveOutputs } from './files.js';
-import { getOrCreateLink, createReading, checkReadingMatch, updateEventAutoExpanded } from './rails.js';
+import { saveMarkdownOutput, saveReadingsOutput } from './files.js';
+import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded } from './rails.js';
 
 const extractionPrompt = loadPrompt("extract_event_info");
 
@@ -35,6 +35,7 @@ const BASE_URL = process.env.BASE_URL;
   // 3. Iterate over links in chunks, stop once 3 matches found
     const limit = pLimit(2);
     const MAX_INPUT_TOKENS = 32000;
+    const allReadings = [];
     let matchesFound = 0;
     let matchingReadings = [];
 
@@ -68,9 +69,8 @@ const BASE_URL = process.env.BASE_URL;
         const result = await queryLLM(truncatedPrompt);
 
         // Save outputs
-        const { mdFilePath, jsonFilePath } = saveOutputs(url, markdown, result);
+        const { mdFilePath } = saveMarkdownOutput(url, markdown);
         console.log(`Saved Markdown to ${mdFilePath}`);
-        console.log(`Saved JSON to ${jsonFilePath}`);
 
         const link = await getOrCreateLink(url).catch(console.error);
 
@@ -109,6 +109,11 @@ const BASE_URL = process.env.BASE_URL;
                         matchingReadings.push(savedReading);
                     }
 
+                    allReadings.push({
+                        ...readingData,
+                        matches: isMatch
+                    });
+
                     console.log(`Reading ${savedReading.id} match status: ${isMatch ? 'matched' : 'not matched'}`);
                 } catch (err) {
                     console.error("Error processing reading:", err.message);
@@ -118,6 +123,15 @@ const BASE_URL = process.env.BASE_URL;
             matchesFound += matchesInPage;
             console.log(`Matches found in this page: ${matchesInPage}, total so far: ${matchesFound}`);
         }
+    }
+
+    await saveReadingsOutput(allReadings);
+
+    try {
+        const mergedEvent = await eventMergeReadings(event.id);
+        console.log("Merged event:", mergedEvent);
+    } catch (err) {
+        console.error("Error merging readings in Rails:", err.message);
     }
 
     await updateEventAutoExpanded(event.id, true);
