@@ -65,6 +65,19 @@ export async function createReading(readingData) {
   return response.json();
 }
 
+export async function checkReadingMatch(readingId, eventId) {
+  const response = await fetch(
+    `${BASE_URL}/readings/${readingId}/check_match?event_id=${eventId}`
+  );
+  
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Failed to create reading: ${response.status} - ${errText}`);
+  }
+
+  return response.json();
+}
+
 export async function updateEventAutoExpanded(eventId, value = true) {
   const response = await fetch(`${BASE_URL}/events/${eventId}.json`, {
     method: "PATCH",
