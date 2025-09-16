@@ -1,22 +1,99 @@
 import fs from "fs";
 import path from "path";
 
-export function saveMarkdownOutput(url, markdown) {
-  const timestamp = new Date().toISOString().replace(/:/g, "-");
-  const safeName = url.replace(/[^a-z0-9]/gi, "_").slice(0, 80);
-  fs.mkdirSync("outputs", { recursive: true });
+function getDateParts() {
+  const now = new Date();
 
-  const mdFilePath = path.join("outputs", `${timestamp}_${safeName}.md`);
-  fs.writeFileSync(mdFilePath, markdown, "utf-8");
-  
-  return { mdFilePath};
+  // Format in US Eastern Time
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23", // ensures 24-hour clock
+  });
+
+  const parts = formatter.formatToParts(now).reduce((acc, p) => {
+    if (p.type !== "literal") acc[p.type] = p.value;
+    return acc;
+  }, {});
+
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    time: `${parts.hour}-${parts.minute}-${parts.second}`,
+  };
 }
 
-export function saveReadingsOutput(allReadings) {
+function getDatePath() {
+  const { year, month, day } = getDateParts();
+  return path.join("outputs", year, month, day);
+}
+
+export function saveMarkdownOutput(url, markdown) {
+  const { time } = getDateParts();
+  const safeName = url
+    .replace(/^https?:\/\//i, "")     // remove http:// or https://
+    .replace(/^www\./i, "")           // remove leading www.
+    .replace(/[^a-z0-9]/gi, "_")      // replace non-alphanum with _
+    .slice(0, 80);                    // trim length
+
+  const dirPath = getDatePath();
+
+  fs.mkdirSync(dirPath, { recursive: true });
+
+  const mdFilePath = path.join(dirPath, `${time}_${safeName}.md`);
+  fs.writeFileSync(mdFilePath, markdown, "utf-8");
+
+  return { mdFilePath };
+}
+
+export function saveReadingsOutput(allReadings, event) {
   if (allReadings.length > 0) {
-    const timestamp = new Date().toISOString().replace(/:/g, "-");
-    const finalJsonPath = path.join("outputs", `all_readings_${timestamp}.json`);
-    fs.writeFileSync(finalJsonPath, JSON.stringify(allReadings, null, 2), "utf-8");
+    const { time } = getDateParts();
+    const dirPath = getDatePath();
+
+    fs.mkdirSync(dirPath, { recursive: true });
+
+    const finalJsonPath = path.join(dirPath, `${time}_${event.id}_readings.json`);
+
+    const output = {
+      event: {
+        id: event.id,
+        event_name: event.event_name,
+        search_string: event.search_string
+      },
+      readings: allReadings
+    };
+
+    fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
     console.log(`Saved all LLM readings to ${finalJsonPath}`);
   }
+}
+
+export function saveEventComparison(originalEvent, mergedEvent) {
+  const { time } = getDateParts();
+  const dirPath = getDatePath();
+
+  fs.mkdirSync(dirPath, { recursive: true });
+
+  const comparisonPath = path.join(dirPath, `${time}_${originalEvent.id}_event_comparison.json`);
+
+  // Collect all unique keys from both objects
+  const keys = new Set([...Object.keys(originalEvent), ...Object.keys(mergedEvent)]);
+  const comparison = {};
+
+  for (const key of keys) {
+    comparison[key] = {
+      original: originalEvent[key] ?? null,
+      merged: mergedEvent[key] ?? null
+    };
+  }
+
+  fs.writeFileSync(comparisonPath, JSON.stringify(comparison, null, 2), "utf-8");
+  console.log(`Saved event comparison to ${comparisonPath}`);
 }

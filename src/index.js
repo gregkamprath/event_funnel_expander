@@ -6,7 +6,7 @@ import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
 import { queryLLM, truncateToTokenLimit, buildEventExtractionPrompt } from './llm.js';
 import { loadPrompt } from "./prompts.js";
-import { saveMarkdownOutput, saveReadingsOutput } from './files.js';
+import { saveMarkdownOutput, saveReadingsOutput, saveEventComparison } from './files.js';
 import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded } from './rails.js';
 
 const extractionPrompt = loadPrompt("extract_event_info");
@@ -111,7 +111,8 @@ const BASE_URL = process.env.BASE_URL;
 
                     allReadings.push({
                         ...readingData,
-                        matches: isMatch
+                        matches: isMatch,
+                        link_url: url
                     });
 
                     console.log(`Reading ${savedReading.id} match status: ${isMatch ? 'matched' : 'not matched'}`);
@@ -125,11 +126,12 @@ const BASE_URL = process.env.BASE_URL;
         }
     }
 
-    await saveReadingsOutput(allReadings);
+    await saveReadingsOutput(allReadings, event);
 
     try {
         const mergedEvent = await eventMergeReadings(event.id);
         console.log("Merged event:", mergedEvent);
+        saveEventComparison(event, mergedEvent);
     } catch (err) {
         console.error("Error merging readings in Rails:", err.message);
     }
