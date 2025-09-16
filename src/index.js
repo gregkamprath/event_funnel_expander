@@ -110,7 +110,7 @@ const BASE_URL = process.env.BASE_URL;
                     }
 
                     allReadings.push({
-                        ...readingData,
+                        ...savedReading,
                         matches: isMatch,
                         link_url: url
                     });
