@@ -106,27 +106,25 @@ export function saveEventComparison(originalEvent, mergedEvent) {
 }
 
 export function saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, grandCost, avgInputTokens, avgOutputTokens, avgCost) {
-  if (allReadings.length > 0) {
-    const { time } = getDateParts();
-    const dirPath = getDatePath();
+  const { time } = getDateParts();
+  const dirPath = getDatePath();
 
-    fs.mkdirSync(dirPath, { recursive: true });
+  fs.mkdirSync(dirPath, { recursive: true });
 
-    const finalJsonPath = path.join(dirPath, `${time}_loop_summary.json`);
+  const finalJsonPath = path.join(dirPath, `${time}_loop_summary.json`);
 
-    const output = {
-      results: {
-        runCount: runCount,
-        grandInputTokens: grandInputTokens,
-        grandOutputTokens: grandOutputTokens,
-        grandCost: grandCost.toFixed(6),
-        avgInputTokens: avgInputTokens.toFixed(2),
-        avgOutputTokens: avgOutputTokens.toFixed(2),
-        avgCost: avgCost.toFixed(6)
-      }
-    };
+  const output = {
+    results: {
+      runCount: runCount,
+      grandInputTokens: grandInputTokens,
+      grandOutputTokens: grandOutputTokens,
+      grandCost: grandCost.toFixed(6),
+      avgInputTokens: avgInputTokens.toFixed(2),
+      avgOutputTokens: avgOutputTokens.toFixed(2),
+      avgCost: avgCost.toFixed(6)
+    }
+  };
 
-    fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
-    console.log(`Saved loop summary to ${finalJsonPath}`);
-  }
+  fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
+  console.log(`Saved loop summary to ${finalJsonPath}`);
 }
