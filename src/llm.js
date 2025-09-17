@@ -1,14 +1,17 @@
 import fetch from 'node-fetch';
 import { encoding_for_model } from 'tiktoken';
 
-export function countTokens(text, model = 'gpt-4.1') {
+const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
+
+
+export function countTokens(text, model = DEFAULT_MODEL) {
   const enc = encoding_for_model(model);
   const tokenCount = enc.encode(text).length;
   enc.free();  // release WASM memory if applicable
   return tokenCount;
 }
 
-export function truncateToTokenLimit(text, maxTokens, model = "gpt-4.1") {
+export function truncateToTokenLimit(text, maxTokens, model = DEFAULT_MODEL) {
   if (text == null) text = "";
   text = String(text);
 
@@ -37,8 +40,8 @@ export function truncateToTokenLimit(text, maxTokens, model = "gpt-4.1") {
   }
 }
 
-export async function queryLLM(prompt, retries = 3) {
-  console.log(`Input tokens: ${countTokens(prompt, 'gpt-4.1')}`);
+export async function queryLLM(prompt, retries = 3, model = DEFAULT_MODEL) {
+  console.log(`Counting tokens with model: ${model}`);
 
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   if (!OPENAI_API_KEY) {
@@ -46,7 +49,7 @@ export async function queryLLM(prompt, retries = 3) {
   }
 
   // Count input tokens
-  const enc = encoding_for_model("gpt-4.1");
+  const enc = encoding_for_model(model);
   const inputTokens = enc.encode(prompt).length;
   console.log(`Input tokens: ${inputTokens}`);
 
@@ -60,11 +63,11 @@ export async function queryLLM(prompt, retries = 3) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "gpt-4.1",
+          model,
           messages: [
             { role: 'user', content: prompt }
           ],
-          max_tokens: 2000,
+          max_tokens: 4000,
           temperature: 0.0
         }),
       });
@@ -115,7 +118,11 @@ export async function queryLLM(prompt, retries = 3) {
         }
       }
 
-      return parsed;
+      return {
+        parsed,
+        inputTokens,
+        outputTokens,
+      };
 
     } catch (err) {
       if (attempt >= retries) throw err; // no more retries
@@ -128,29 +135,30 @@ export async function queryLLM(prompt, retries = 3) {
 }
 
 export function buildEventExtractionPrompt(basePrompt, event, markdown) {
-  const targetEventContext = `
-    We are trying to find references to a target event, which may have partial or mixed information. Here is the target event:
+  // const targetEventContext = `
+  //   We are trying to find references to a target event, which may have partial or mixed information. Here is the target event:
 
-    {
-      "event_name": "${event.event_name}",
-      "event_name_casual": "${event.event_name_casual}",
-      "organization_name": "${event.organization_name}",
-      "start_date": "${event.start_date}",
-      "end_date": "${event.end_date}",
-      "city": "${event.city}",
-      "state": "${event.state}",
-      "venue": "${event.venue}"
-    }
+  //   {
+  //     "event_name": "${event.event_name}",
+  //     "event_name_casual": "${event.event_name_casual}",
+  //     "organization_name": "${event.organization_name}",
+  //     "start_date": "${event.start_date}",
+  //     "end_date": "${event.end_date}",
+  //     "city": "${event.city}",
+  //     "state": "${event.state}",
+  //     "venue": "${event.venue}"
+  //   }
 
-    For each extracted event, include an additional boolean field:
-    "matches_target_event": true | false
+  //   For each extracted event, include an additional boolean field:
+  //   "matches_target_event": true | false
 
-    Rules for matching:
-    - Return true if the extracted event likely refers to the same event as the target event.
-    - Sometimes the extracted dates may be similar to the target event but not identical.
-    - Sometimes the target event name may include the organization name as well as the event name, or may be just the organization name instead of the event name.
-    - If the extracted event is unlikely to refer to the target event then return false.
-    `;
+  //   Rules for matching:
+  //   - Return true if the extracted event likely refers to the same event as the target event.
+  //   - Sometimes the extracted dates may be similar to the target event but not identical.
+  //   - Sometimes the target event name may include the organization name as well as the event name, or may be just the organization name instead of the event name.
+  //   - If the extracted event is unlikely to refer to the target event then return false.
+  //   `;
 
-    return `${basePrompt}\n\n${targetEventContext}\n\n${markdown}`;
+    // return `${basePrompt}\n\n${targetEventContext}\n\n${markdown}`;
+    return `${basePrompt}\n\n${markdown}`;
 }

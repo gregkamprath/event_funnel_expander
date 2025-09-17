@@ -6,16 +6,32 @@ import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
 import { queryLLM, truncateToTokenLimit, buildEventExtractionPrompt } from './llm.js';
 import { loadPrompt } from "./prompts.js";
-import { saveMarkdownOutput, saveReadingsOutput, saveEventComparison } from './files.js';
-import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded } from './rails.js';
+import { saveMarkdownOutput, saveReadingsOutput, saveEventComparison, saveLoopOutput } from './files.js';
+import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded} from './rails.js';
+
+const eventId = process.argv[2];           // optional event id
+const runCount = parseInt(process.argv[3] || "", 10); // number of times to run
 
 const extractionPrompt = loadPrompt("extract_event_info");
-
 const BASE_URL = process.env.BASE_URL;
+const RUN_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
 
-(async () => {
+async function expandOneEvent(eventId) {
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let matchesFound = 0;
+    let allReadings = [];
+    let matchingReadings = [];
+
     // 1. Fetch target event from Rails API
-    const url = `${BASE_URL}/events/next_to_auto_expand`;
+    let url;
+
+    if (eventId) {
+        url = `${BASE_URL}/events/${eventId}`;
+    } else {
+        url = `${BASE_URL}/events/next_to_auto_expand`;
+    }
+
     const response = await fetch(
         url,
         { headers: { "Accept": "application/json" } }
@@ -35,9 +51,6 @@ const BASE_URL = process.env.BASE_URL;
   // 3. Iterate over links in chunks, stop once 3 matches found
     const limit = pLimit(2);
     const MAX_INPUT_TOKENS = 32000;
-    const allReadings = [];
-    let matchesFound = 0;
-    let matchingReadings = [];
 
     for (const url of links) {
         if (matchesFound >= 3) {
@@ -66,7 +79,9 @@ const BASE_URL = process.env.BASE_URL;
         const truncatedPrompt = truncateToTokenLimit(prePrompt, MAX_INPUT_TOKENS);
 
         // Query LLM
-        const result = await queryLLM(truncatedPrompt);
+        const { parsed: result, inputTokens, outputTokens } = await queryLLM(truncatedPrompt, 3, RUN_MODEL);
+        totalInputTokens += inputTokens;
+        totalOutputTokens += outputTokens;
 
         // Save outputs
         const { mdFilePath } = saveMarkdownOutput(url, markdown);
@@ -126,7 +141,19 @@ const BASE_URL = process.env.BASE_URL;
         }
     }
 
-    await saveReadingsOutput(allReadings, event);
+    // Pricing in $ per 1M tokens (defaults; override with env if you like)
+    const MODEL_PRICING = {
+        'gpt-4.1-mini': { inputPer1M: 0.80, outputPer1M: 3.20 },
+        // add others if you may use them
+        'gpt-4.1': { inputPer1M: 3.00, outputPer1M: 12.00 },
+        'gpt-4.1-nano': { inputPer1M: 0.20, outputPer1M: 0.80 },
+    };
+    const pricing = MODEL_PRICING[RUN_MODEL];
+    const costInput = (totalInputTokens / 1_000_000) * pricing.inputPer1M;
+    const costOutput = (totalOutputTokens / 1_000_000) * pricing.outputPer1M;
+    const totalCost = costInput + costOutput;
+
+    await saveReadingsOutput(allReadings, event, totalInputTokens, totalOutputTokens, costInput, costOutput, totalCost);
 
     try {
         const mergedEvent = await eventMergeReadings(event.id);
@@ -137,5 +164,51 @@ const BASE_URL = process.env.BASE_URL;
     }
 
     await updateEventAutoExpanded(event.id, true);
+
+
+
     console.log(`Finished processing. Total matches: ${matchesFound}`);
+    console.log(`Total input tokens: ${totalInputTokens}`);
+    console.log(`Total output tokens: ${totalOutputTokens}`);
+    console.log(`Estimated cost: $${totalCost.toFixed(6)} (input $${costInput.toFixed(6)} + output $${costOutput.toFixed(6)})`);
+    return {
+        totalInputTokens,
+        totalOutputTokens,
+        matchesFound,
+        cost: totalCost
+    };
+}
+
+(async () => {
+
 }) ();
+
+(async () => {
+  let grandInputTokens = 0;
+  let grandOutputTokens = 0;
+  let grandCost = 0;
+
+  for (let i = 0; i < runCount; i++) {
+    console.log(`\n========== Run ${i + 1} of ${runCount} ==========\n`);
+    const result = await expandOneEvent(eventId);
+
+    grandInputTokens += result.totalInputTokens;
+    grandOutputTokens += result.totalOutputTokens;
+    grandCost += result.cost;
+  }
+
+  const avgInputTokens = grandInputTokens / runCount;
+  const avgOutputTokens = grandOutputTokens / runCount;
+  const avgCost = grandCost / runCount;
+
+    await saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, grandCost, avgInputTokens, avgOutputTokens, avgCost);
+
+  console.log("\n========== Final Summary ==========");
+  console.log(`Total loops: ${runCount}`);
+  console.log(`Total input tokens: ${grandInputTokens}`);
+  console.log(`Total output tokens: ${grandOutputTokens}`);
+  console.log(`Total cost: $${grandCost.toFixed(6)}`);
+  console.log(`Average input tokens per loop: ${avgInputTokens.toFixed(2)}`);
+  console.log(`Average output tokens per loop: ${avgOutputTokens.toFixed(2)}`);
+  console.log(`Average cost per loop: $${avgCost.toFixed(6)}`);
+})();
