@@ -22,6 +22,7 @@ Always return valid JSON in the following format:
 Rules:
 - If no events are found, return an empty array: [].
 - If multiple events are found, return one object per event inside the array.
+- Do not return virtual events such as zoom webinars or live streams.
 - If a field is missing in the text, return an empty string for that key.
 - Dates should be in YYYY-MM-DD format if possible. If only partial information is available (e.g. month and year), use the best approximation.
 - Do not include any extra commentary or explanation — only return the JSON array.
@@ -29,6 +30,8 @@ Rules:
 - Sometimes organizations will post that they're attending an event, or will be exhibiting at an event. Only return the organization putting on the event. If it cannot be determined, use an empty string.
 - Some events have a formal name as well as a casual or abbreviated name, in which case return both. If not then leave the casual event name blank.
 - Some organizations (especially associations) have a full name as well as an abbreviated name. If so return both, but if not leave the abbreviated organization name blank.
-- If it's apparent what the web URL for the organization is then return it, but if not leave it blank.
+- If it's apparent what the official web URL for the organization is then return it, but if not leave it blank.
+- The official web URL for the organization will not be a social media site such as facebook or linkedin. It will also not be a site that relists events such as 10events or Vendelux.
 - If the markdown includes a link to find more information, include it. But if not leave it blank.
 - Ignore forum/social media post dates (publication dates). Only extract actual event dates.
+- For the venue it's ok to include local/regional information if it's part of the proper venue name. For example, "Hyatt Regency Denver" or "Gaylord Rockies". Do not include the room name (such as "Hall G" or "Grand Ballroom") and do not include the address ("123 Main St", etc.)

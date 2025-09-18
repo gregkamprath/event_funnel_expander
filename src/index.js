@@ -16,6 +16,35 @@ const extractionPrompt = loadPrompt("extract_event_info");
 const BASE_URL = process.env.BASE_URL;
 const RUN_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
 
+// Blocklist as regex patterns
+const BLOCKLIST = [
+  { type: "domain", pattern: /(^|\.)investing\.com$/i, reason: "Blocked domain: investing.com - it crashes browser" },
+  { type: "url", pattern: /\.pdf$/i, reason: "Blocked file type: PDF" }
+];
+
+function getHostname(url) {
+  try {
+    return new URL(url).hostname; // e.g. "www.investing.com"
+  } catch {
+    return ""; // in case it's a malformed URL
+  }
+}
+
+function getBlockReason(url) {
+  const hostname = getHostname(url);
+
+  for (const { type, pattern, reason } of BLOCKLIST) {
+    if (type === "domain" && pattern.test(hostname)) {
+      return reason;
+    }
+    if (type === "url" && pattern.test(url)) {
+      return reason;
+    }
+  }
+
+  return null; // not blocked
+}
+
 async function expandOneEvent(eventId) {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
@@ -45,8 +74,20 @@ async function expandOneEvent(eventId) {
     console.log("Target Event:", event);
 
     // 2. Search up to 10 candidate pages
-    const links = await searchDuckDuckGo(event.search_string, 10);
-    console.log("Search results:", links);
+    let links = await searchDuckDuckGo(event.search_string, 10);
+    console.log("Search results (raw):\n", links);
+
+    // Apply blocklist with logging
+    links = links.filter(url => {
+    const reason = getBlockReason(url);
+    if (reason) {
+        console.log(`❌ Excluded: ${url} → ${reason}`);
+        return false;
+    }
+    return true;
+    });
+
+    console.log("Search results (filtered):\n", links);
 
   // 3. Iterate over links in chunks, stop once 3 matches found
     const limit = pLimit(2);
