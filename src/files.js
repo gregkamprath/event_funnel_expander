@@ -52,6 +52,24 @@ export function saveMarkdownOutput(url, markdown) {
   return { mdFilePath };
 }
 
+export function saveTextOutput(url, text) {
+  const { time } = getDateParts();
+  const safeName = url
+    .replace(/^https?:\/\//i, "")     // remove http:// or https://
+    .replace(/^www\./i, "")           // remove leading www.
+    .replace(/[^a-z0-9]/gi, "_")      // replace non-alphanum with _
+    .slice(0, 80);                    // trim length
+
+  const dirPath = getDatePath();
+
+  fs.mkdirSync(dirPath, { recursive: true });
+
+  const textPath = path.join(dirPath, `${time}_${safeName}.txt`);
+  fs.writeFileSync(textPath, text, "utf-8");
+
+  return { textPath };
+}
+
 export function saveReadingsOutput(allReadings, event, totalInputTokens, totalOutputTokens, costInput, costOutput, totalCost) {
   if (allReadings.length > 0) {
     const { time } = getDateParts();

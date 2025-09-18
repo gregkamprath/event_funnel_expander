@@ -3,13 +3,14 @@ import { humanDelay, autoScroll } from './helpers.js'
 import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
 import { URL } from 'url';
+import { saveMarkdownOutput, saveTextOutput } from './files.js';
+
 
 function htmlToMarkdown(html) {
     const $ = cheerio.load(html);
 
     // Remove noise / non-content elements
     $('script, style, noscript, header, nav, aside, iframe, form, ads, svg').remove();
-    // $('script, style, noscript, header, footer, nav, aside, iframe, form, ads, svg').remove();
 
     // Extract cleaned HTML body
     const cleanedHtml = $('body').html() || '';
@@ -20,7 +21,6 @@ function htmlToMarkdown(html) {
         bulletListMarker: '-'
     });
 
-    // return cleanedHtml; // temporarily doing just html instead of markdown
     return turndownService.turndown(cleanedHtml);
 }
 
@@ -61,11 +61,27 @@ export async function fetchPageHtml(url) {
             html = await page.content();
         }
 
-        // console.log('Inner HTML:', html?.slice(0,500));
-
+        let plaintext;
+        try {
+            plaintext = await page.evaluate(() => document.body ? document.body.innerText : "");
+        } catch (e) {
+            plaintext ="";
+        }
         const markdown = html ? htmlToMarkdown(html) : null;
 
-        return { url, html: html, markdown, error: null };
+        // Save outputs
+        const { mdFilePath } = saveMarkdownOutput(url, markdown);
+        console.log(`Saved Markdown to ${mdFilePath}`);
+        const { textPath } = saveTextOutput(url, plaintext);
+        console.log(`Saved text to ${textPath}`);
+
+        return { 
+            url, 
+            html: html, 
+            markdown,
+            plaintext,
+            error: null 
+        };
     } catch (error) {
         return { url, html: null, markdown: null, error: error.message }
     } finally {
@@ -78,4 +94,22 @@ export async function fetchPageHtml(url) {
         }
         await browser.close();
     }
+}
+
+// If this file is run directly from the command line:
+if (process.argv[1] === new URL(import.meta.url).pathname) {
+  const url = process.argv[2];
+  if (!url) {
+    console.error("Usage: node ./src/fetch.js <url>");
+    process.exit(1);
+  }
+
+  (async () => {
+    const result = await fetchPageHtml(url);
+
+    if (result.error) {
+      console.error("❌ Error fetching page:", result.error);
+      process.exit(1);
+    }
+  })();
 }
