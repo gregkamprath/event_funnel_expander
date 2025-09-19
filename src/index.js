@@ -6,7 +6,7 @@ import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
 import { queryLLM, truncateToTokenLimit, buildEventExtractionPrompt } from './llm.js';
 import { loadPrompt } from "./prompts.js";
-import { saveReadingsOutput, saveEventComparison, saveLoopOutput } from './files.js';
+import { saveReadingsOutput, saveEventComparison, saveLoopOutput, saveEntireOutput } from './files.js';
 import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded} from './rails.js';
 
 const eventId = process.argv[2];           // optional event id
@@ -75,11 +75,13 @@ function getBlockReason(url) {
 }
 
 async function expandOneEvent(eventId) {
+    let loop = { };
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let matchesFound = 0;
     let allReadings = [];
     let matchingReadings = [];
+
 
     // 1. Fetch target event from Rails API
     let url;
@@ -225,8 +227,9 @@ async function expandOneEvent(eventId) {
 
     await saveReadingsOutput(allReadings, event, totalInputTokens, totalOutputTokens, costInput, costOutput, totalCost);
 
+    let mergedEvent = {}
     try {
-        const mergedEvent = await eventMergeReadings(event.id);
+        mergedEvent = await eventMergeReadings(event.id);
         console.log("Merged event:", mergedEvent);
         saveEventComparison(event, mergedEvent);
     } catch (err) {
@@ -235,18 +238,26 @@ async function expandOneEvent(eventId) {
 
     await updateEventAutoExpanded(event.id, true);
 
-
-
     console.log(`Finished processing. Total matches: ${matchesFound}`);
     console.log(`Total input tokens: ${totalInputTokens}`);
     console.log(`Total output tokens: ${totalOutputTokens}`);
     console.log(`Estimated cost: $${totalCost.toFixed(6)} (input $${costInput.toFixed(6)} + output $${costOutput.toFixed(6)})`);
-    return {
-        totalInputTokens,
-        totalOutputTokens,
-        matchesFound,
-        cost: totalCost
-    };
+    loop.event = {
+        id: event.id,
+        event_name: event.event_name,
+        search_string: event.search_string
+      },
+    loop.results = {
+      matchesFound: matchesFound,
+      totalInputTokens: totalInputTokens,
+      totalOutputTokens: totalOutputTokens,
+      costInput: costInput,
+      costOutput: costOutput,
+      cost: totalCost,
+    }
+    loop.mergedEvent = mergedEvent;
+    loop.readings = allReadings;
+    return loop;
 }
 
 (async () => {
@@ -254,6 +265,7 @@ async function expandOneEvent(eventId) {
 }) ();
 
 (async () => {
+  let loops = [];
   let grandInputTokens = 0;
   let grandOutputTokens = 0;
   let grandCost = 0;
@@ -261,17 +273,19 @@ async function expandOneEvent(eventId) {
   for (let i = 0; i < runCount; i++) {
     console.log(`\n========== Run ${i + 1} of ${runCount} ==========\n`);
     const result = await expandOneEvent(eventId);
+    loops.push(result);
 
-    grandInputTokens += result.totalInputTokens;
-    grandOutputTokens += result.totalOutputTokens;
-    grandCost += result.cost;
+    grandInputTokens += result.results.totalInputTokens;
+    grandOutputTokens += result.results.totalOutputTokens;
+    grandCost += result.results.cost;
   }
 
   const avgInputTokens = grandInputTokens / runCount;
   const avgOutputTokens = grandOutputTokens / runCount;
   const avgCost = grandCost / runCount;
 
-    await saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, grandCost, avgInputTokens, avgOutputTokens, avgCost);
+  await saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, grandCost, avgInputTokens, avgOutputTokens, avgCost);
+  await saveEntireOutput(loops);
 
   console.log("\n========== Final Summary ==========");
   console.log(`Total loops: ${runCount}`);

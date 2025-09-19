@@ -146,3 +146,15 @@ export function saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, gr
   fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
   console.log(`Saved loop summary to ${finalJsonPath}`);
 }
+
+export function saveEntireOutput(output) {
+  const { time } = getDateParts();
+  const dirPath = getDatePath();
+
+  fs.mkdirSync(dirPath, { recursive: true });
+
+  const finalJsonPath = path.join(dirPath, `${time}_entire_output.json`);
+
+  fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
+  console.log(`Saved entire output to ${finalJsonPath}`);
+}
