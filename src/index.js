@@ -6,7 +6,7 @@ import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
 import { queryLLM, truncateToTokenLimit, buildEventExtractionPrompt } from './llm.js';
 import { loadPrompt } from "./prompts.js";
-import { saveReadingsOutput, saveEventComparison, saveLoopOutput, saveEntireOutput } from './files.js';
+import { saveReadingsOutput, saveEventComparison, saveLoopOutput, saveLoopsOutput, saveEntireOutput } from './files.js';
 import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded} from './rails.js';
 
 const eventId = process.argv[2];           // optional event id
@@ -74,6 +74,20 @@ function getBlockReason(url) {
   return null; // not blocked
 }
 
+function compare(originalEvent, mergedEvent) {
+    // Collect all unique keys from both objects
+  const keys = new Set([...Object.keys(originalEvent), ...Object.keys(mergedEvent)]);
+  const comparison = {};
+
+  for (const key of keys) {
+    comparison[key] = {
+      original: originalEvent[key] ?? null,
+      merged: mergedEvent[key] ?? null
+    };
+  }
+  return comparison;
+}
+
 async function expandOneEvent(eventId) {
     let loop = { };
     let totalInputTokens = 0;
@@ -81,6 +95,8 @@ async function expandOneEvent(eventId) {
     let matchesFound = 0;
     let allReadings = [];
     let matchingReadings = [];
+    let linkIterations = [];
+    let readLinks = [];
 
 
     // 1. Fetch target event from Rails API
@@ -106,10 +122,11 @@ async function expandOneEvent(eventId) {
 
     // 2. Search up to 10 candidate pages
     let links = await searchDuckDuckGo(event.search_string, 10);
+    linkIterations.push(links);
     console.log("Search results (raw):\n", links);
 
     // Apply blocklist with logging
-    links = links.filter(url => {
+    let newLinks = links.filter(url => {
     const reason = getBlockReason(url);
     if (reason) {
         console.log(`❌ Excluded: ${url} → ${reason}`);
@@ -117,6 +134,10 @@ async function expandOneEvent(eventId) {
     }
     return true;
     });
+    if (newLinks != links) {
+      linkIterations.push(newLinks);
+    }
+    links = newLinks;
 
     console.log("Search results (filtered):\n", links);
 
@@ -153,6 +174,7 @@ async function expandOneEvent(eventId) {
         totalOutputTokens += outputTokens;
 
         const link = await getOrCreateLink(url).catch(console.error);
+        readLinks.push(url);
 
         if (Array.isArray(result)) {
             let matchesInPage = 0;
@@ -160,6 +182,7 @@ async function expandOneEvent(eventId) {
             if (result.length === 0) {
               console.log(`No events found at ${url}, moving ${getHostname(url)} domain to the end`);
               links = moveDomainToEnd(links, url);
+              linkIterations.push(links)
               console.log("Re-ordered search results:\n", links);
               continue
             }
@@ -225,13 +248,10 @@ async function expandOneEvent(eventId) {
     const costOutput = (totalOutputTokens / 1_000_000) * pricing.outputPer1M;
     const totalCost = costInput + costOutput;
 
-    await saveReadingsOutput(allReadings, event, totalInputTokens, totalOutputTokens, costInput, costOutput, totalCost);
-
-    let mergedEvent = {}
+    let eventComparison = {}
     try {
-        mergedEvent = await eventMergeReadings(event.id);
-        console.log("Merged event:", mergedEvent);
-        saveEventComparison(event, mergedEvent);
+        const mergedEvent = await eventMergeReadings(event.id);
+        eventComparison = compare(event, mergedEvent);
     } catch (err) {
         console.error("Error merging readings in Rails:", err.message);
     }
@@ -255,8 +275,11 @@ async function expandOneEvent(eventId) {
       costOutput: costOutput,
       cost: totalCost,
     }
-    loop.mergedEvent = mergedEvent;
+    loop.eventComparison = eventComparison;
+    loop.linkIterations = linkIterations;
+    loop.readLinks = readLinks;
     loop.readings = allReadings;
+    await saveLoopOutput(loop);
     return loop;
 }
 
@@ -284,8 +307,19 @@ async function expandOneEvent(eventId) {
   const avgOutputTokens = grandOutputTokens / runCount;
   const avgCost = grandCost / runCount;
 
-  await saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, grandCost, avgInputTokens, avgOutputTokens, avgCost);
-  await saveEntireOutput(loops);
+  const totalResults = {
+    results: {
+      runCount: runCount,
+      grandInputTokens: grandInputTokens,
+      grantOutputTokens: grandOutputTokens,
+      grandCost: grandCost,
+      avgInputTokens: avgInputTokens,
+      avgOutputTokens: avgOutputTokens,
+      avgCost: avgCost
+    },
+    loops: loops
+  }
+  await saveLoopsOutput(totalResults);
 
   console.log("\n========== Final Summary ==========");
   console.log(`Total loops: ${runCount}`);

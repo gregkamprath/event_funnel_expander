@@ -123,13 +123,13 @@ export function saveEventComparison(originalEvent, mergedEvent) {
   console.log(`Saved event comparison to ${comparisonPath}`);
 }
 
-export function saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, grandCost, avgInputTokens, avgOutputTokens, avgCost) {
+export function saveEntireOutput(runCount, grandInputTokens, grandOutputTokens, grandCost, avgInputTokens, avgOutputTokens, avgCost) {
   const { time } = getDateParts();
   const dirPath = getDatePath();
 
   fs.mkdirSync(dirPath, { recursive: true });
 
-  const finalJsonPath = path.join(dirPath, `${time}_loop_summary.json`);
+  const finalJsonPath = path.join(dirPath, `${time}_whole_run_summary.json`);
 
   const output = {
     results: {
@@ -144,17 +144,29 @@ export function saveLoopOutput(runCount, grandInputTokens, grandOutputTokens, gr
   };
 
   fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
-  console.log(`Saved loop summary to ${finalJsonPath}`);
+  console.log(`Saved whole run summary to ${finalJsonPath}`);
 }
 
-export function saveEntireOutput(output) {
+export function saveLoopOutput(output) {
   const { time } = getDateParts();
   const dirPath = getDatePath();
 
   fs.mkdirSync(dirPath, { recursive: true });
 
-  const finalJsonPath = path.join(dirPath, `${time}_entire_output.json`);
+  const finalJsonPath = path.join(dirPath, `${time}_single_loop_output.json`);
 
   fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
-  console.log(`Saved entire output to ${finalJsonPath}`);
+  console.log(`Saved single loop output to ${finalJsonPath}`);
+}
+
+export function saveLoopsOutput(output) {
+  const { time } = getDateParts();
+  const dirPath = getDatePath();
+
+  fs.mkdirSync(dirPath, { recursive: true });
+
+  const finalJsonPath = path.join(dirPath, `${time}_all_loops_output.json`);
+
+  fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
+  console.log(`Saved all loops output to ${finalJsonPath}`);
 }
