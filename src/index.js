@@ -6,7 +6,7 @@ import { searchDuckDuckGo } from './search.js';
 import { fetchPageHtml } from './fetch.js';
 import { queryLLM, truncateToTokenLimit, buildEventExtractionPrompt } from './llm.js';
 import { loadPrompt } from "./prompts.js";
-import { saveMarkdownOutput, saveReadingsOutput, saveEventComparison, saveLoopOutput } from './files.js';
+import { saveReadingsOutput, saveEventComparison, saveLoopOutput } from './files.js';
 import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded} from './rails.js';
 
 const eventId = process.argv[2];           // optional event id
@@ -19,8 +19,37 @@ const RUN_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
 // Blocklist as regex patterns
 const BLOCKLIST = [
   { type: "domain", pattern: /(^|\.)investing\.com$/i, reason: "Blocked domain: investing.com - it crashes browser" },
+  { type: "domain", pattern: /(^|\.)financy.yahoo\.com$/i, reason: "Blocked domain: finance.yahoo.com - it crashes browser" },
   { type: "url", pattern: /\.pdf$/i, reason: "Blocked file type: PDF" }
 ];
+
+function getBaseDomain(hostname) {
+  // strip "www." and subdomains → "example.com"
+  const parts = hostname.split('.');
+  return parts.slice(-2).join('.'); 
+}
+
+function moveDomainToEnd(links, badUrl) {
+  const badHost = getHostname(badUrl);
+  const badBase = getBaseDomain(badHost);
+
+  // Stable partition: keep everything not matching first, then matching
+  const matching = [];
+  const rest = [];
+
+  for (const link of links) {
+    if (link === badUrl) continue; // skip the bad link itself
+
+    const base = getBaseDomain(getHostname(link));
+    if (base === badBase) {
+      matching.push(link);
+    } else {
+      rest.push(link);
+    }
+  }
+
+  return [...rest, ...matching];
+}
 
 function getHostname(url) {
   try {
@@ -93,11 +122,9 @@ async function expandOneEvent(eventId) {
     const limit = pLimit(2);
     const MAX_INPUT_TOKENS = 32000;
 
-    for (const url of links) {
-        if (matchesFound >= 3) {
-            console.log("✅ Found 3 matching events — stopping early.");
-            break;
-        }
+    while (links.length > 0 && matchesFound < 3) {
+        console.log(`\n========================================================`);
+        const url = links.shift();
 
         console.log(`Fetching: ${url}`);
         const { markdown, error } = await limit(() => fetchPageHtml(url));
@@ -112,7 +139,6 @@ async function expandOneEvent(eventId) {
             continue;
         }
 
-        console.log(`\n========================================================`);
         console.log(`Sending cleaned content from ${url} to LLM...`);
 
         // Build prompt
@@ -124,14 +150,17 @@ async function expandOneEvent(eventId) {
         totalInputTokens += inputTokens;
         totalOutputTokens += outputTokens;
 
-        // Save outputs
-        const { mdFilePath } = saveMarkdownOutput(url, markdown);
-        console.log(`Saved Markdown to ${mdFilePath}`);
-
         const link = await getOrCreateLink(url).catch(console.error);
 
         if (Array.isArray(result)) {
             let matchesInPage = 0;
+
+            if (result.length === 0) {
+              console.log(`No events found at ${url}, moving ${getHostname(url)} domain to the end`);
+              links = moveDomainToEnd(links, url);
+              console.log("Re-ordered search results:\n", links);
+              continue
+            }
 
             for (const ev of result) {
                 try {
