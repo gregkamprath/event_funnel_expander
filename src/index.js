@@ -8,6 +8,7 @@ import { queryLLM, truncateToTokenLimit, buildEventExtractionPrompt } from './ll
 import { loadPrompt } from "./prompts.js";
 import { saveReadingsOutput, saveEventComparison, saveLoopOutput, saveLoopsOutput, saveEntireOutput } from './files.js';
 import { getOrCreateLink, createReading, checkReadingMatch, eventMergeReadings, updateEventAutoExpanded} from './rails.js';
+import { performance } from "perf_hooks";
 
 const eventId = process.argv[2];           // optional event id
 const runCount = parseInt(process.argv[3] || "", 10); // number of times to run
@@ -98,6 +99,7 @@ async function expandOneEvent(eventId) {
     let linkIterations = [];
     let readLinks = [];
 
+    const startTime = performance.now();
 
     // 1. Fetch target event from Rails API
     let url;
@@ -258,10 +260,15 @@ async function expandOneEvent(eventId) {
 
     await updateEventAutoExpanded(event.id, true);
 
-    console.log(`Finished processing. Total matches: ${matchesFound}`);
+    const endTime = performance.now();
+    const totalTimeMinutes = (endTime - startTime) / (1000 * 60);
+
+    console.log(`\nFinished processing. Total matches: ${matchesFound}`);
     console.log(`Total input tokens: ${totalInputTokens}`);
     console.log(`Total output tokens: ${totalOutputTokens}`);
     console.log(`Estimated cost: $${totalCost.toFixed(6)} (input $${costInput.toFixed(6)} + output $${costOutput.toFixed(6)})`);
+    console.log(`Total time: ${totalTimeMinutes.toFixed(2)} minutes`);
+
     loop.event = {
         id: event.id,
         event_name: event.event_name,
@@ -269,11 +276,13 @@ async function expandOneEvent(eventId) {
       },
     loop.results = {
       matchesFound: matchesFound,
+      allReadingsFound: allReadings.length,
       totalInputTokens: totalInputTokens,
       totalOutputTokens: totalOutputTokens,
       costInput: costInput,
       costOutput: costOutput,
       cost: totalCost,
+      totalTimeMinutes: totalTimeMinutes,
     }
     loop.eventComparison = eventComparison;
     loop.linkIterations = linkIterations;
@@ -284,14 +293,12 @@ async function expandOneEvent(eventId) {
 }
 
 (async () => {
-
-}) ();
-
-(async () => {
   let loops = [];
   let grandInputTokens = 0;
   let grandOutputTokens = 0;
   let grandCost = 0;
+
+  const startTime = performance.now();
 
   for (let i = 0; i < runCount; i++) {
     console.log(`\n========== Run ${i + 1} of ${runCount} ==========\n`);
@@ -302,6 +309,10 @@ async function expandOneEvent(eventId) {
     grandOutputTokens += result.results.totalOutputTokens;
     grandCost += result.results.cost;
   }
+
+  const endTime = performance.now();
+  const totalTimeMinutes = (endTime - startTime) / (1000 * 60);
+  const avgTimeMinutes = totalTimeMinutes / runCount;
 
   const avgInputTokens = grandInputTokens / runCount;
   const avgOutputTokens = grandOutputTokens / runCount;
@@ -315,7 +326,9 @@ async function expandOneEvent(eventId) {
       grandCost: grandCost,
       avgInputTokens: avgInputTokens,
       avgOutputTokens: avgOutputTokens,
-      avgCost: avgCost
+      avgCost: avgCost,
+      totalTimeMinutes: totalTimeMinutes,
+      avgTimeMinutes: avgTimeMinutes
     },
     loops: loops
   }
@@ -329,4 +342,6 @@ async function expandOneEvent(eventId) {
   console.log(`Average input tokens per loop: ${avgInputTokens.toFixed(2)}`);
   console.log(`Average output tokens per loop: ${avgOutputTokens.toFixed(2)}`);
   console.log(`Average cost per loop: $${avgCost.toFixed(6)}`);
+  console.log(`Total time: ${totalTimeMinutes.toFixed(2)} minutes`);
+  console.log(`Average time per loop: ${avgTimeMinutes.toFixed(2)} minutes`);
 })();
