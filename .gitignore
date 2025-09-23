@@ -1,6 +1,9 @@
 # Node modules
 node_modules/
 
+# persistent playwright browser profile
+user-data-zoominfo
+
 # Logs
 logs/
 *.log

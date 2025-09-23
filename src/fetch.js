@@ -61,25 +61,25 @@ export async function fetchPageHtml(url) {
             html = await page.content();
         }
 
-        let plaintext;
-        try {
-            plaintext = await page.evaluate(() => document.body ? document.body.innerText : "");
-        } catch (e) {
-            plaintext ="";
-        }
+        // let plaintext;
+        // try {
+        //     plaintext = await page.evaluate(() => document.body ? document.body.innerText : "");
+        // } catch (e) {
+        //     plaintext ="";
+        // }
         const markdown = html ? htmlToMarkdown(html) : null;
 
         // Save outputs
         const { mdFilePath } = saveMarkdownOutput(url, markdown);
         console.log(`Saved Markdown to ${mdFilePath}`);
-        const { textPath } = saveTextOutput(url, plaintext);
-        console.log(`Saved text to ${textPath}`);
+        // const { textPath } = saveTextOutput(url, plaintext);
+        // console.log(`Saved text to ${textPath}`);
 
         return { 
             url, 
             html: html, 
             markdown,
-            plaintext,
+            // plaintext,
             error: null 
         };
     } catch (error) {
