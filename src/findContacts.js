@@ -73,41 +73,56 @@ async function openZoomInfoWithProfile() {
     await page.waitForTimeout(200);         // small delay to ensure it's processed
   }
 
-// Wait until at least one result row is in the DOM
-await page.waitForSelector('tr.result-row', { timeout: 5000 }); // waits up to 5 seconds
+  // --- open "Sort by" dropdown ---
+  await page.waitForSelector('zic-input-select[label="Sort by"] .zic-input-select__input-container__input', { state: 'visible' });
+  await page.click('zic-input-select[label="Sort by"] .zic-input-select__input-container__input');
 
-// Select all result rows
-const rows = await page.$$('tr.result-row');
+  // Wait for the sort dialog to appear (this matches the HTML you pasted)
+  await page.waitForSelector('.sort-dropdown-dialog[role="dialog"]', { state: 'visible', timeout: 5000 });
+  const sortDialog = page.locator('.sort-dropdown-dialog[role="dialog"]');
 
-// Map each row into an object
-const results = [];
-for (const row of rows) {
-    const name = await row.$eval(
-        'a[data-automation-id="contact-column-contact-name"] span[data-automation-id="card-name"]',
-        el => el.textContent.trim()
-    );
+  // Wait for the "Seniority Level" menu item inside that dialog
+  const seniorityLocator = sortDialog.locator('li[role="menuitem"][aria-label="Seniority Level"]');
+  await seniorityLocator.waitFor({ state: 'visible', timeout: 3000 });
 
-    const jobTitle = await row.$eval(
-        'div.job-title__container span[data-automation-id="card-name"]',
-        el => el.textContent.trim()
-    );
+  // Click the anchor/text inside the menu item (safe target)
+  await sortDialog.getByRole('menuitem', { name: 'Seniority Level' }).click();
 
-    const company = await row.$eval(
-        'div.company-name-container a span[data-automation-id="card-name"]',
-        el => el.textContent.trim()
-    );
+  // Wait until at least one result row is in the DOM
+  await page.waitForSelector('tr.result-row', { timeout: 5000 }); // waits up to 5 seconds
 
-    const accuracy = await row.$eval(
-        'zi-confidence-score .tooltip-content',
-        el => el.textContent.replace('Contact Accuracy Score: ', '').trim()
-    );
+  // Select all result rows
+  const rows = await page.$$('tr.result-row');
 
-    results.push({ name, jobTitle, company, accuracy });
-}
+  // Map each row into an object
+  const results = [];
+  for (const row of rows) {
+      const name = await row.$eval(
+          'a[data-automation-id="contact-column-contact-name"] span[data-automation-id="card-name"]',
+          el => el.textContent.trim()
+      );
 
-console.log(results);
+      const jobTitle = await row.$eval(
+          'div.job-title__container span[data-automation-id="card-name"]',
+          el => el.textContent.trim()
+      );
 
-return { context, page };
+      const company = await row.$eval(
+          'div.company-name-container a span[data-automation-id="card-name"]',
+          el => el.textContent.trim()
+      );
+
+      const accuracy = await row.$eval(
+          'zi-confidence-score .tooltip-content',
+          el => el.textContent.replace('Contact Accuracy Score: ', '').trim()
+      );
+
+      results.push({ name, jobTitle, company, accuracy });
+  }
+
+  console.log(results);
+
+  return { context, page };
 }
 
 openZoomInfoWithProfile().catch(console.error);
