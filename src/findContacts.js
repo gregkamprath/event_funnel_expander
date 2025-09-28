@@ -16,6 +16,14 @@ function normalizeWebsite(url) {
   }
 }
 
+function randomDelay(min = 500, max = 1500) {
+  return new Promise(resolve => {
+    const timeout = Math.floor(Math.random() * (max - min + 1)) + min;
+    setTimeout(resolve, timeout);
+  });
+}
+
+
 async function openZoomInfoWithProfile() {
   const account = {
     website: "https://www.axis.com/"
@@ -30,9 +38,7 @@ async function openZoomInfoWithProfile() {
   });
 
   const [page] = context.pages().length ? context.pages() : [await context.newPage()];
-  // await page.goto("https://app.zoominfo.com/#/apps/search/v2", { waitUntil: "networkidle" }); // sometimes never idle
   await page.goto("https://app.zoominfo.com/#/apps/search/v2", { waitUntil: "domcontentloaded" });
-
 
   // Open "Company Name" filter
   await page.waitForSelector('button[data-automation-id="companyNameUrlTicker_label"]', { state: "visible" });
@@ -92,35 +98,34 @@ async function openZoomInfoWithProfile() {
   await page.waitForSelector('tr.result-row', { timeout: 5000 }); // waits up to 5 seconds
 
   // Select all result rows
-  const rows = await page.$$('tr.result-row');
+  // const rows = await page.$$('tr.result-row');
+  const rows = page.locator('tr.result-row');
+  const count = await rows.count();
 
   // Map each row into an object
+  const preliminaryResults = [];
   const results = [];
-  for (const row of rows) {
-      const name = await row.$eval(
-          'a[data-automation-id="contact-column-contact-name"] span[data-automation-id="card-name"]',
-          el => el.textContent.trim()
-      );
+  for (let i = 0; i < count; i++) {
+    const row = rows.nth(i);
+    // Extract prelim info
+    const prelimName = await row.locator('a[data-automation-id="contact-column-contact-name"] span[data-automation-id="card-name"]').innerText();
+    const prelimJobTitle = await row.locator('div.job-title__container span[data-automation-id="card-name"]').innerText();
+    const prelimCompany = await row.locator('div.company-name-container a span[data-automation-id="card-name"]').innerText();
+    const prelimAccuracy = await row.locator('zi-confidence-score .tooltip-content').innerText();
 
-      const jobTitle = await row.$eval(
-          'div.job-title__container span[data-automation-id="card-name"]',
-          el => el.textContent.trim()
-      );
+    preliminaryResults.push({ prelimName, prelimJobTitle, prelimCompany, prelimAccuracy });
 
-      const company = await row.$eval(
-          'div.company-name-container a span[data-automation-id="card-name"]',
-          el => el.textContent.trim()
-      );
+    // Click the job title field in this row
+    const jobDiv = await row.locator('div.job-title__container div[data-automation-id]');
+    await jobDiv.click();
 
-      const accuracy = await row.$eval(
-          'zi-confidence-score .tooltip-content',
-          el => el.textContent.replace('Contact Accuracy Score: ', '').trim()
-      );
-
-      results.push({ name, jobTitle, company, accuracy });
+    // Wait for Quick View panel to appear
+    await page.getByRole('heading', { name: 'Quick View' }).waitFor();
+    await randomDelay();
   }
 
-  console.log(results);
+  console.log("Preliminary results: \n\n" + preliminaryResults);
+  // console.log("Fuller results: \n\n" + results);
 
   return { context, page };
 }
