@@ -98,7 +98,6 @@ async function openZoomInfoWithProfile() {
   await page.waitForSelector('tr.result-row', { timeout: 5000 }); // waits up to 5 seconds
 
   // Select all result rows
-  // const rows = await page.$$('tr.result-row');
   const rows = page.locator('tr.result-row');
   const count = await rows.count();
 
@@ -121,11 +120,45 @@ async function openZoomInfoWithProfile() {
 
     // Wait for Quick View panel to appear
     await page.getByRole('heading', { name: 'Quick View' }).waitFor();
-    await randomDelay();
+    await randomDelay(1500, 3000);
+
+    const name = await page.locator('h2[data-automation-id="person-details-name"]').innerText();
+    const jobTitle = await page.locator('span[data-automation-id="person-details-title"]').innerText();
+    const company = await page.locator('button[data-automation-id="dialog-company-name"]').innerText();
+
+    let businessEmail = null;
+    const businessEmailBlock = page.locator('zi-entity-data[aria-label="Business Email"] a');
+    if (await businessEmailBlock.count() > 0) {
+      businessEmail = await businessEmailBlock.first().innerText();
+    }
+
+    let directPhone = null;
+    const directPhoneBlock = page.locator('zi-entity-data[aria-label="Direct Phone"] a');
+    if (await directPhoneBlock.count() > 0) {
+      directPhone = await directPhoneBlock.first().innerText();
+    }
+
+    let mobilePhone = null;
+    const mobilePhoneBlock = page.locator('zi-entity-data[aria-label="Mobile Phone"] a');
+    if (await mobilePhoneBlock.count() > 0) {
+      mobilePhone = await mobilePhoneBlock.first().innerText();
+    }
+
+    let hqPhone = null;
+    const hqPhoneBlock = page.locator('zi-entity-data[aria-label="HQ Phone"] a');
+    if (await hqPhoneBlock.count() > 0) {
+      hqPhone = await hqPhoneBlock.first().innerText();
+    }
+
+    results.push({ name, jobTitle, company, businessEmail, directPhone, mobilePhone, hqPhone});
   }
 
-  console.log("Preliminary results: \n\n" + preliminaryResults);
-  // console.log("Fuller results: \n\n" + results);
+  console.log("Preliminary results:");
+  console.log(preliminaryResults);
+
+  console.log("Results:");
+  console.log(results);
+
 
   return { context, page };
 }
