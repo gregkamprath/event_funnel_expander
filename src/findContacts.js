@@ -1,4 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: './src/.env' });
 import { chromium } from "playwright";
+
+const BASE_URL = process.env.BASE_URL;
 
 function normalizeWebsite(url) {
   if (!url) return "";
@@ -25,9 +29,20 @@ function randomDelay(min = 500, max = 1500) {
 
 
 async function openZoomInfoWithProfile() {
-  const account = {
-    website: "https://www.axis.com/"
-  };
+  let url;
+  url = `${BASE_URL}/events/next_to_auto_find_contacts`;
+
+  const response = await fetch(
+      url,
+      { headers: { "Accept": "application/json" } }
+  );
+
+  if (!response.ok) {
+      throw new Error(`Failed to fetch event: ${response.statusText}`);
+  }
+
+  const event = await response.json();
+  console.log("Target Event:", event);
 
   const userDataDir = "./user-data-zoominfo";
 
@@ -51,7 +66,7 @@ async function openZoomInfoWithProfile() {
   await input.waitFor({ state: "visible" });
 
   // Usage in your playwright code
-  const cleanedWebsite = normalizeWebsite(account.website);
+  const cleanedWebsite = normalizeWebsite(event.account.website);
 
   // Type normalized website into field
   await input.click({ force: true });
