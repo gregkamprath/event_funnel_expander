@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: './src/.env' });
 import { chromium } from "playwright";
+import { getOrCreateContact, updateEventFlag } from './rails.js';
+
 
 const BASE_URL = process.env.BASE_URL;
 
@@ -27,6 +29,28 @@ function randomDelay(min = 500, max = 1500) {
   });
 }
 
+function splitFullName(fullName) {
+  if (!fullName || typeof fullName !== "string") {
+    return { firstName: "", lastName: "" };
+  }
+
+  // Trim whitespace and split on spaces
+  const parts = fullName.trim().split(/\s+/);
+
+  let firstName = "";
+  let lastName = "";
+
+  if (parts.length === 1) {
+    // Only one name given
+    firstName = parts[0];
+  } else if (parts.length > 1) {
+    // First word as first name, last word as last name
+    firstName = parts[0];
+    lastName = parts.slice(1).join(" "); // handles middle/compound last names
+  }
+
+  return { firstName, lastName };
+}
 
 async function openZoomInfoWithProfile() {
   let url;
@@ -138,13 +162,14 @@ async function openZoomInfoWithProfile() {
     await randomDelay(1500, 3000);
 
     const name = await page.locator('h2[data-automation-id="person-details-name"]').innerText();
-    const jobTitle = await page.locator('span[data-automation-id="person-details-title"]').innerText();
+    const { firstName, lastName } = splitFullName(name);
+    const title = await page.locator('span[data-automation-id="person-details-title"]').innerText();
     const company = await page.locator('button[data-automation-id="dialog-company-name"]').innerText();
 
-    let businessEmail = null;
-    const businessEmailBlock = page.locator('zi-entity-data[aria-label="Business Email"] a');
-    if (await businessEmailBlock.count() > 0) {
-      businessEmail = await businessEmailBlock.first().innerText();
+    let email = null;
+    const emailBlock = page.locator('zi-entity-data[aria-label="Business Email"] a');
+    if (await emailBlock.count() > 0) {
+      email = await emailBlock.first().innerText();
     }
 
     let directPhone = null;
@@ -159,13 +184,31 @@ async function openZoomInfoWithProfile() {
       mobilePhone = await mobilePhoneBlock.first().innerText();
     }
 
-    let hqPhone = null;
-    const hqPhoneBlock = page.locator('zi-entity-data[aria-label="HQ Phone"] a');
-    if (await hqPhoneBlock.count() > 0) {
-      hqPhone = await hqPhoneBlock.first().innerText();
+    let generalPhone = null;
+    const generalPhoneBlock = page.locator('zi-entity-data[aria-label="HQ Phone"] a');
+    if (await generalPhoneBlock.count() > 0) {
+      generalPhone = await generalPhoneBlock.first().innerText();
     }
 
-    results.push({ name, jobTitle, company, businessEmail, directPhone, mobilePhone, hqPhone});
+    let preContact = {
+      first_name: firstName?.trim() || null,
+      last_name: lastName?.trim() || null,
+      title: title?.trim() || null,
+      direct_phone: directPhone?.trim() || null,
+      mobile_phone: mobilePhone?.trim() || null,
+      general_phone: generalPhone?.trim() || null,
+      email: email?.trim() || null,
+      account_id: event.account.id
+    };
+    let contact = null
+    try {
+      contact = await getOrCreateContact(preContact);
+    } catch (err) {
+      console.error("Error creating contact: ", err)
+    }
+    if(contact) {
+      results.push(contact);
+    }
   }
 
   console.log("Preliminary results:");
@@ -174,6 +217,7 @@ async function openZoomInfoWithProfile() {
   console.log("Results:");
   console.log(results);
 
+  await updateEventFlag(event.id, "auto_found_contacts", true);
 
   return { context, page };
 }

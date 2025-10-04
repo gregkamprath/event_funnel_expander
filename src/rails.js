@@ -49,6 +49,32 @@ export async function getOrCreateAccount(name, abbr, website) {
     }
 }
 
+export async function getOrCreateContact(contact) {
+    if (!contact) return null; // no org info provided
+
+    const url = `${BASE_URL}/contacts/find_or_create`;
+    const payload = {
+      contact
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to find/create contact (status: ${response.status})`);
+        }
+
+        return await response.json(); // should return the contact object
+    } catch (err) {
+        console.error("Error in getOrCreateContact:", err.message);
+        return null;
+    }
+}
+
 
 export async function createReading(readingData) {
   const response = await fetch(`${BASE_URL}/readings.json`, {
@@ -96,8 +122,6 @@ export async function eventMergeReadings(eventId) {
   return response.json();
 }
 
-
-
 export async function updateEventAutoExpanded(eventId, value = true) {
   const response = await fetch(`${BASE_URL}/events/${eventId}.json`, {
     method: "PATCH",
@@ -110,5 +134,21 @@ export async function updateEventAutoExpanded(eventId, value = true) {
     throw new Error(`Failed to update event: ${response.status} - ${text}`);
   }
 
+  return JSON.parse(text);
+}
+
+export async function updateEventFlag(eventId, field, value = true) {
+  const response = await fetch(`${BASE_URL}/events/${eventId}.json`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event: { [field]: value } }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Failed to update event: ${response.status} - ${text}`);
+  }
+
+  console.log(`For event ${eventId}, set field ${field} to ${value}`);
   return JSON.parse(text);
 }
