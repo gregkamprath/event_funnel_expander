@@ -152,3 +152,12 @@ export async function updateEventFlag(eventId, field, value = true) {
   console.log(`For event ${eventId}, set field ${field} to ${value}`);
   return JSON.parse(text);
 }
+
+export async function splitFullName(fullName) {
+  const response = await fetch(`${BASE_URL}/contacts/split_full_name?name=${encodeURIComponent(fullName)}`);
+  const data = await response.json();
+  return {
+    firstName: data.first_name,
+    lastName: data.last_name
+  };
+}

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: './src/.env' });
 import { chromium } from "playwright";
-import { getOrCreateContact, updateEventFlag } from './rails.js';
+import { getOrCreateContact, updateEventFlag, splitFullName } from './rails.js';
 
 
 const BASE_URL = process.env.BASE_URL;
@@ -27,29 +27,6 @@ function randomDelay(min = 500, max = 1500) {
     const timeout = Math.floor(Math.random() * (max - min + 1)) + min;
     setTimeout(resolve, timeout);
   });
-}
-
-function splitFullName(fullName) {
-  if (!fullName || typeof fullName !== "string") {
-    return { firstName: "", lastName: "" };
-  }
-
-  // Trim whitespace and split on spaces
-  const parts = fullName.trim().split(/\s+/);
-
-  let firstName = "";
-  let lastName = "";
-
-  if (parts.length === 1) {
-    // Only one name given
-    firstName = parts[0];
-  } else if (parts.length > 1) {
-    // First word as first name, last word as last name
-    firstName = parts[0];
-    lastName = parts.slice(1).join(" "); // handles middle/compound last names
-  }
-
-  return { firstName, lastName };
 }
 
 async function openZoomInfoWithProfile() {
@@ -136,33 +113,51 @@ async function openZoomInfoWithProfile() {
   // Wait until at least one result row is in the DOM
   await page.waitForSelector('tr.result-row', { timeout: 5000 }); // waits up to 5 seconds
 
-  // Select all result rows
+  // Collect preliminary info while table is stable
   const rows = page.locator('tr.result-row');
   const count = await rows.count();
 
-  // Map each row into an object
-  const preliminaryResults = [];
-  const results = [];
-  for (let i = 0; i < count; i++) {
-    const row = rows.nth(i);
-    // Extract prelim info
-    const prelimName = await row.locator('a[data-automation-id="contact-column-contact-name"] span[data-automation-id="card-name"]').innerText();
-    const prelimJobTitle = await row.locator('div.job-title__container span[data-automation-id="card-name"]').innerText();
-    const prelimCompany = await row.locator('div.company-name-container a span[data-automation-id="card-name"]').innerText();
-    const prelimAccuracy = await row.locator('zi-confidence-score .tooltip-content').innerText();
+    // Get total and visible rows
+  const allRows = page.locator('tr.result-row');
+  const totalCount = await allRows.count();
 
-    preliminaryResults.push({ prelimName, prelimJobTitle, prelimCompany, prelimAccuracy });
+  const visibleRows = page.locator('tr.result-row:visible');
+  const visibleCount = await visibleRows.count();
+
+  console.log(`Found ${visibleCount} visible rows out of ${totalCount} total rows`);
+
+  // const preliminaryResults = [];
+  // for (let i = 0; i < count; i++) {
+  //   const row = rows.nth(i);
+  //   const prelimName = await row.locator('a[data-automation-id="contact-column-contact-name"] span[data-automation-id="card-name"]').innerText();
+  //   const prelimJobTitle = await row.locator('div.job-title__container span[data-automation-id="card-name"]').innerText();
+  //   const prelimCompany = await row.locator('div.company-name-container a span[data-automation-id="card-name"]').innerText();
+  //   const prelimAccuracy = await row.locator('zi-confidence-score .tooltip-content').innerText();
+  //   preliminaryResults.push({ prelimName, prelimJobTitle, prelimCompany, prelimAccuracy });
+  // }
+
+  const results = [];
+  for (let i = 0; i < visibleCount; i++) {
+    console.log(`i value is: ${i}`);
+    const row = visibleRows.nth(i);
 
     // Click the job title field in this row
     const jobDiv = await row.locator('div.job-title__container div[data-automation-id]');
-    await jobDiv.click();
+    try {
+      await jobDiv.click({ timeout: 5000 });
+    } catch {
+      console.warn(`Skipping visible row ${i}, jobDiv not clickable`);
+      continue;
+    }
 
     // Wait for Quick View panel to appear
     await page.getByRole('heading', { name: 'Quick View' }).waitFor();
     await randomDelay(1500, 3000);
 
     const name = await page.locator('h2[data-automation-id="person-details-name"]').innerText();
-    const { firstName, lastName } = splitFullName(name);
+    const { firstName, lastName } = await splitFullName(name);
+    console.log(`First name: ${firstName}`);
+    console.log(`Last name: ${lastName}`);
     const title = await page.locator('span[data-automation-id="person-details-title"]').innerText();
     const company = await page.locator('button[data-automation-id="dialog-company-name"]').innerText();
 
@@ -211,15 +206,13 @@ async function openZoomInfoWithProfile() {
     }
   }
 
-  console.log("Preliminary results:");
-  console.log(preliminaryResults);
-
   console.log("Results:");
   console.log(results);
 
   await updateEventFlag(event.id, "auto_found_contacts", true);
 
-  return { context, page };
+  await context.close();
+  // return { context, page };
 }
 
 openZoomInfoWithProfile().catch(console.error);
