@@ -75,7 +75,6 @@ export async function getOrCreateContact(contact) {
     }
 }
 
-
 export async function createReading(readingData) {
   const response = await fetch(`${BASE_URL}/readings.json`, {
     method: "POST",
@@ -137,6 +136,23 @@ export async function updateEventAutoExpanded(eventId, value = true) {
   return JSON.parse(text);
 }
 
+export async function getNextEventToAutoFindContacts() {
+  let url;
+  url = `${BASE_URL}/events/next_to_auto_find_contacts`;
+
+  const response = await fetch(
+      url,
+      { headers: { "Accept": "application/json" } }
+  );
+
+  if (!response.ok) {
+      throw new Error(`Failed to fetch event: ${response.statusText}`);
+  }
+
+  const event = await response.json();
+  return event;
+}
+
 export async function updateEventFlag(eventId, field, value = true) {
   const response = await fetch(`${BASE_URL}/events/${eventId}.json`, {
     method: "PATCH",
@@ -154,10 +170,15 @@ export async function updateEventFlag(eventId, field, value = true) {
 }
 
 export async function splitFullName(fullName) {
-  const response = await fetch(`${BASE_URL}/contacts/split_full_name?name=${encodeURIComponent(fullName)}`);
+  const response = await fetch(`${BASE_URL}/contacts/split_full_name`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: fullName }),
+  });
+
   const data = await response.json();
   return {
     firstName: data.first_name,
-    lastName: data.last_name
+    lastName: data.last_name,
   };
 }
