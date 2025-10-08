@@ -178,7 +178,22 @@ export async function splitFullName(fullName) {
 
   const data = await response.json();
   return {
-    firstName: data.first_name,
-    lastName: data.last_name,
+    first_name: data.first_name,
+    last_name: data.last_name,
   };
+}
+
+export async function verifyEmail(email) {
+  const response = await fetch(`${BASE_URL}/contacts/verify_email_temp.json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Email verification failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data; // contains { status, email_is_good, message }
 }

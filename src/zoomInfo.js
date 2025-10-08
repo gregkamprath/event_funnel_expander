@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-import { getOrCreateContact, splitFullName } from './rails.js';
+import { splitFullName } from './rails.js';
 
 function normalizeWebsite(url) {
   if (!url) return "";
@@ -121,11 +121,11 @@ export async function sortResults(page) {
     return {page, successful};
 }
 
-export async function grabContactsFromZoomInfoSearchResults(page, event) {
+export async function grabContactsFromZoomInfoSearchResults(page) {
     let successful = false;
     ({page, successful} = await sortResults(page));
 
-    let contacts = [];
+    let preContacts = [];
     if (successful) {
         // Wait until at least one result row is in the DOM
         try {
@@ -158,6 +158,7 @@ export async function grabContactsFromZoomInfoSearchResults(page, event) {
         // }
 
         for (let i = 0; i < visibleCount; i++) {
+            let preContact = {};
             console.log(`i value is: ${i}`);
             const row = visibleRows.nth(i);
 
@@ -174,59 +175,44 @@ export async function grabContactsFromZoomInfoSearchResults(page, event) {
             await page.getByRole('heading', { name: 'Quick View' }).waitFor();
             await randomDelay(1500, 3000);
 
-            const name = await page.locator('h2[data-automation-id="person-details-name"]').innerText();
-            const { firstName, lastName } = await splitFullName(name);
-            console.log(`First name: ${firstName}`);
-            console.log(`Last name: ${lastName}`);
-            const title = await page.locator('span[data-automation-id="person-details-title"]').innerText();
-            const company = await page.locator('button[data-automation-id="dialog-company-name"]').innerText();
+            preContact.full_name = await page.locator('h2[data-automation-id="person-details-name"]').innerText();
+            const { first_name, last_name } = await splitFullName(preContact.full_name);
+            preContact.first_name = first_name;
+            preContact.last_name = last_name;
+            console.log(preContact.first_name);
+            console.log(preContact.last_name);
 
-            let email = null;
+            preContact.title = await page.locator('span[data-automation-id="person-details-title"]').innerText();
+            
+            preContact.company = await page.locator('button[data-automation-id="dialog-company-name"]').innerText();
+
+            preContact.email = null;
             const emailBlock = page.locator('zi-entity-data[aria-label="Business Email"] a');
             if (await emailBlock.count() > 0) {
-                email = await emailBlock.first().innerText();
+                preContact.email = await emailBlock.first().innerText();
             }
 
-            let directPhone = null;
+            preContact.direct_phone = null;
             const directPhoneBlock = page.locator('zi-entity-data[aria-label="Direct Phone"] a');
             if (await directPhoneBlock.count() > 0) {
-                directPhone = await directPhoneBlock.first().innerText();
+                preContact.direct_phone = await directPhoneBlock.first().innerText();
             }
 
-            let mobilePhone = null;
+            preContact.mobile_phone = null;
             const mobilePhoneBlock = page.locator('zi-entity-data[aria-label="Mobile Phone"] a');
             if (await mobilePhoneBlock.count() > 0) {
-                mobilePhone = await mobilePhoneBlock.first().innerText();
+                preContact.mobile_phone = await mobilePhoneBlock.first().innerText();
             }
 
-            let generalPhone = null;
+            preContact.general_phone = null;
             const generalPhoneBlock = page.locator('zi-entity-data[aria-label="HQ Phone"] a');
             if (await generalPhoneBlock.count() > 0) {
-                generalPhone = await generalPhoneBlock.first().innerText();
+                preContact.general_phone = await generalPhoneBlock.first().innerText();
             }
-
-            let preContact = {
-                first_name: firstName?.trim() || null,
-                last_name: lastName?.trim() || null,
-                title: title?.trim() || null,
-                direct_phone: directPhone?.trim() || null,
-                mobile_phone: mobilePhone?.trim() || null,
-                general_phone: generalPhone?.trim() || null,
-                email: email?.trim() || null,
-                account_id: event.account.id
-            };
-            let contact = null
-            try {
-                contact = await getOrCreateContact(preContact);
-            } catch (err) {
-                console.error("Error creating contact: ", err)
-            }
-            if(contact) {
-                contacts.push(contact);
-            }
+            preContacts.push(preContact);
         }
     }
-    return {page, contacts};
+    return {page, preContacts};
 }
 
 export async function closeZoomInfo(context) {
