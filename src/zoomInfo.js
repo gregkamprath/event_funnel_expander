@@ -182,6 +182,23 @@ export async function grabContactsFromZoomInfoSearchResults(page) {
             console.log(preContact.first_name);
             console.log(preContact.last_name);
 
+            // Extract ZoomInfo URL
+            const linkHandle = page.locator('div#personDetailsName a');
+            if (await linkHandle.count() > 0) {
+                const baseUrl = 'https://app.zoominfo.com';
+                const href = await linkHandle.getAttribute('href');
+
+                if (href) {
+                    // Remove the hash (#), split off query params, and rebuild a clean URL
+                    const cleanPath = href.split('?')[0];
+                    preContact.zoominfo = `${baseUrl}/${cleanPath}`;
+                } else {
+                    preContact.zoominfo = null;
+                }
+            } else {
+                preContact.zoominfo = null;
+            }
+
             preContact.title = await page.locator('span[data-automation-id="person-details-title"]').innerText();
             
             preContact.company = await page.locator('button[data-automation-id="dialog-company-name"]').innerText();

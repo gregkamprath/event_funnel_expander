@@ -8,19 +8,13 @@ async function checkEmailBeforeSaving(email) {
   try {
     const result = await verifyEmail(email);
     console.log("Verification result:", result);
-
-    if (result.status === "ok") {
-      console.log("Email is valid, proceeding to save contact...");
-      return true;
-      // continue your logic here
-    } else {
-      console.log("Email may not be valid:", result.message);
-      return false;
-    }
+    return result;
   } catch (error) {
     console.error("Error verifying email:", error);
+    return { email_is_good: false, email_verification_result: "error" };
   }
 }
+
 
 async function findContacts() {
   const event = await getNextEventToAutoFindContacts();
@@ -53,7 +47,10 @@ async function findContacts() {
       continue;
     } else {
       console.log(`Verifying email for ${preContact.full_name}: ${preContact.email}`);
-      preContact.email_is_good = await checkEmailBeforeSaving(preContact.email);
+      const result = await checkEmailBeforeSaving(preContact.email);
+      preContact.email_is_good = result.email_is_good;
+      preContact.email_verification_result = result.email_verification_result;
+
       if (preContact.email_is_good) {
         console.log(`Valid email for ${preContact.full_name}: ${preContact.email}`);
         break;

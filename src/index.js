@@ -20,7 +20,9 @@ const RUN_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
 // Blocklist as regex patterns
 const BLOCKLIST = [
   { type: "domain", pattern: /(^|\.)investing\.com$/i, reason: "Blocked domain: investing.com - it crashes browser" },
-  { type: "domain", pattern: /(^|\.)financy.yahoo\.com$/i, reason: "Blocked domain: finance.yahoo.com - it crashes browser" },
+  { type: "domain", pattern: /(^|\.)finance.yahoo\.com$/i, reason: "Blocked domain: finance.yahoo.com - it crashes browser" },
+  { type: "domain", pattern: /(^|\.)10times\.com$/i, reason: "Blocked domain: 10times.com - too many extra results, or no results at all" },
+
   { type: "url", pattern: /\.pdf$/i, reason: "Blocked file type: PDF" }
 ];
 
