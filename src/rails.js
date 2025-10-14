@@ -197,3 +197,28 @@ export async function verifyEmail(email) {
   const data = await response.json();
   return data; // contains { status, email_is_good, message }
 }
+
+export async function checkTitle(title) {
+  try {
+    const response = await fetch(`${BASE_URL}/undesirable_titles/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title })
+    });
+
+    // Handle non-OK responses (e.g. 422, 500)
+    if (!response.ok) {
+      console.error(`Rails error ${response.status} while checking title: "${title}"`);
+      return { undesirable: null, error: `HTTP ${response.status}` };
+    }
+
+    const data = await response.json();
+    console.log(`"${title}" is undesirable? ${data.undesirable}`);
+    return data;
+
+  } catch (err) {
+    // Handle network or JSON parse errors
+    console.error(`Error checking title "${title}": ${err.message}`);
+    return { undesirable: null, error: err.message };
+  }
+}

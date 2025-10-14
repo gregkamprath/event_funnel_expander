@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: './src/.env' });
 import { chromium } from "playwright";
-import { getNextEventToAutoFindContacts, updateEventFlag, splitFullName, verifyEmail, getOrCreateContact } from './rails.js';
+import { getNextEventToAutoFindContacts, updateEventFlag, splitFullName, verifyEmail, getOrCreateContact, checkTitle } from './rails.js';
 import { openZoomInfoSearch, enterZoomInfoSearchParameters, grabContactsFromZoomInfoSearchResults, closeZoomInfo } from './zoomInfo.js';
 
 async function checkEmailBeforeSaving(email) {
@@ -14,7 +14,6 @@ async function checkEmailBeforeSaving(email) {
     return { email_is_good: false, email_verification_result: "error" };
   }
 }
-
 
 async function findContacts() {
   const event = await getNextEventToAutoFindContacts();
@@ -53,7 +52,23 @@ async function findContacts() {
 
       if (preContact.email_is_good) {
         console.log(`Valid email for ${preContact.full_name}: ${preContact.email}`);
-        break;
+
+        const result = await checkTitle(preContact.title);
+        const titleIsUndesirable = result.undesirable;
+
+        if (titleIsUndesirable === null) {
+          // Error talking to Rails — treat as "unknown" but continue gracefully
+          console.warn(`Could not verify title "${preContact.title}" due to error: ${result.error}`);
+          preContact.desirable = false; // or true, depending on your fallback logic
+        } else if (!titleIsUndesirable) {
+          preContact.desirable = true;
+          console.log(`This contact is desirable`);
+          console.log(preContact);
+          break;
+        } else {
+          preContact.desirable = false;
+        }
+
       } else {
         console.log(`Invalid email for ${preContact.full_name}: ${preContact.email}`);
         preContact.desirable = false;
