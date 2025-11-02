@@ -109,18 +109,33 @@ async function findContactsForOneEvent(page) {
 
   saveOutput(output, "contacts_for_one_event");
   await updateEventFlag(event.id, "auto_found_contacts", true);
-  return page;
+  return { page, output };
 }
 
 async function findContacts(numEvents) {
   let {context, page} = await openZoomInfoSearch();
+  const allOutputs = [];
+  let finalOutput = {};
 
   for (let i = 0; i < numEvents; i++) {
     console.log(`Processing event ${i + 1} of ${numEvents}`);
-    page = await findContactsForOneEvent(page);
+    const result = await findContactsForOneEvent(page);
+
+    page = result.page;
+    allOutputs.push(result.output);
   }
 
   await closeZoomInfo(context);
+
+  finalOutput.totalEvents = allOutputs.length;
+  finalOutput.totalContacts = allOutputs.reduce((sum, o) => sum + o.contacts.length, 0);
+  finalOutput.eventsWithDesirable = allOutputs.filter(o => o.desirableContact).length;
+
+  console.log("===== Final Report =====");
+  console.log("Events processed:", finalOutput.totalEvents);
+  console.log("Contacts found:", finalOutput.totalContacts);
+  console.log("Events with desirable contact:", finalOutput.eventsWithDesirable);
+  saveOutput(finalOutput, "found_contacts");
 }
 
 findContacts(numEvents)
