@@ -50,28 +50,54 @@ export async function getOrCreateAccount(name, abbr, website) {
 }
 
 export async function getOrCreateContact(contact) {
-    if (!contact) return null; // no org info provided
+  if (!contact) return null; // no org info provided
 
-    const url = `${BASE_URL}/contacts/find_or_create`;
-    const payload = {
-      contact
-    };
+  const url = `${BASE_URL}/contacts/find_or_create`;
+  const payload = {
+    contact
+  };
+
+  try {
+      const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+          throw new Error(`Failed to find/create contact (status: ${response.status})`);
+      }
+
+      return await response.json(); // should return the contact object
+  } catch (err) {
+      console.error("Error in getOrCreateContact:", err.message);
+      return null;
+  }
+}
+
+export async function associateWithEvent(id, event_id) {
+  if (!id || !event_id) return null; // need both contact and event id
+
+  const url = `${BASE_URL}/contacts/${id}/associate_with_event`;
+  const payload = {
+    event_id
+  };
 
     try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify(payload)
-        });
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-        if (!response.ok) {
-            throw new Error(`Failed to find/create contact (status: ${response.status})`);
-        }
+      if (!response.ok) {
+        throw new Error(`Failed to association contact with event (status: ${response.status})`);
+      }
 
-        return await response.json(); // should return the contact object
+      return await response.json();
     } catch (err) {
-        console.error("Error in getOrCreateContact:", err.message);
-        return null;
+      console.error("Error in associateWithEvent:", err.message);
+      return null;
     }
 }
 

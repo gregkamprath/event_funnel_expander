@@ -38,6 +38,31 @@ export async function openZoomInfoSearch() {
     return {context, page};
 }
 
+export async function clearAllFilters(page) {
+  try {
+    await page.waitForTimeout(500);
+
+    const clearAllButton = page.locator('#btn-clear-all');
+
+    // Wait until it exists in the DOM (attached)
+    await clearAllButton.waitFor({ state: 'attached', timeout: 5000 });
+
+    console.log("Attempting to click 'Clear All'...");
+
+    // Use force:true so Playwright clicks even if disabled or covered
+    await clearAllButton.click({ force: true, timeout: 2000 });
+
+    await page.waitForTimeout(500);
+
+    console.log("Clicked 'Clear All'");
+
+  } catch (err) {
+    console.error("Error attempting to click 'Clear All':", err.message);
+  }
+}
+
+
+
 export async function enterZoomInfoSearchParameters(page, website, titleWords) {
     // Open "Company Name" filter
     await page.waitForSelector('button[data-automation-id="companyNameUrlTicker_label"]', { state: "visible" });

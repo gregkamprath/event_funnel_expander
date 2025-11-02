@@ -1,8 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: './src/.env' });
 import { chromium } from "playwright";
-import { getNextEventToAutoFindContacts, updateEventFlag, splitFullName, verifyEmail, getOrCreateContact, checkTitle } from './rails.js';
-import { openZoomInfoSearch, enterZoomInfoSearchParameters, grabContactsFromZoomInfoSearchResults, closeZoomInfo } from './zoomInfo.js';
+import { getNextEventToAutoFindContacts, updateEventFlag, splitFullName, verifyEmail, getOrCreateContact, checkTitle, associateWithEvent } from './rails.js';
+import { openZoomInfoSearch, enterZoomInfoSearchParameters, grabContactsFromZoomInfoSearchResults, closeZoomInfo, clearAllFilters } from './zoomInfo.js';
+
+// Get number of events from CLI, default to 1
+const numEvents = parseInt(process.argv[2], 10) || 1;
 
 async function checkEmailBeforeSaving(email) {
   try {
@@ -15,11 +18,11 @@ async function checkEmailBeforeSaving(email) {
   }
 }
 
-async function findContacts() {
+async function findContactsForOneEvent(page) {
   const event = await getNextEventToAutoFindContacts();
   console.log("Target Event:", event);
 
-  let {context, page} = await openZoomInfoSearch();
+  await clearAllFilters(page);
 
   let contacts = [];
   let preContacts = [];
@@ -88,6 +91,12 @@ async function findContacts() {
       const contact = await getOrCreateContact(preContact);
       if (contact) {
         contacts.push(contact);
+        if (contact.desirable) {
+          const result = await associateWithEvent(contact.id, event.id);
+          if (result?.success) {
+            console.log(`Linked contact ${contact.id} with event ${event.id}`);
+          }
+        }
       }
     } catch (err) {
       console.error("Error creating contact:", err);
@@ -99,7 +108,20 @@ async function findContacts() {
   console.log(contacts);
 
   await updateEventFlag(event.id, "auto_found_contacts", true);
+  return page;
+}
+
+async function findContacts(numEvents) {
+  let {context, page} = await openZoomInfoSearch();
+
+  for (let i = 0; i < numEvents; i++) {
+    console.log(`Processing event ${i + 1} of ${numEvents}`);
+    page = await findContactsForOneEvent(page);
+  }
+
   await closeZoomInfo(context);
 }
 
-findContacts().catch(console.error);
+findContacts(numEvents)
+  .then(() => console.log("Done processing events."))
+  .catch(err => console.error("Error in findContacts:", err));
