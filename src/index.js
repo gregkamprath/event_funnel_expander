@@ -77,6 +77,27 @@ function getBlockReason(url) {
   return null; // not blocked
 }
 
+function sanitizeOrganizationLink(link) {
+  const invalidTLDs = ["linkedin.com", "facebook.com", "x.com", "eventsinamerica.com"];
+
+  if (!link) return null;
+
+  try {
+    const url = new URL(link);
+    const hostname = url.hostname.toLowerCase();
+
+    // Check if the hostname ends with any of the invalid domains
+    if (invalidTLDs.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))) {
+      return null; // discard invalid links
+    }
+
+    return link; // link looks fine
+  } catch (err) {
+    // If it's not a valid URL at all, discard it
+    return null;
+  }
+}
+
 function compare(originalEvent, mergedEvent) {
     // Collect all unique keys from both objects
   const keys = new Set([...Object.keys(originalEvent), ...Object.keys(mergedEvent)]);
@@ -199,7 +220,7 @@ async function expandOneEvent(eventId) {
                         event_name_casual: ev.event_name_casual,
                         organization_name: ev.organization_name,
                         organization_name_abbreviated: ev.organization_name_abbreviated,
-                        organization_link: ev.organization_link,
+                        organization_link: sanitizeOrganizationLink(ev.organization_link),
                         start_date: ev.start_date,
                         end_date: ev.end_date,
                         city: ev.city,
