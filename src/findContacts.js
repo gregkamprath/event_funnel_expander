@@ -21,6 +21,7 @@ async function checkEmailBeforeSaving(email) {
 }
 
 async function findContactsForOneEvent(page) {
+  const startTime = Date.now(); // Start timer
   let output = {};
   const event = await getNextEventToAutoFindContacts();
   output.event = event;
@@ -68,7 +69,6 @@ async function findContactsForOneEvent(page) {
         } else if (!titleIsUndesirable) {
           preContact.desirable = true;
           console.log(`This contact is desirable: ${preContact.full_name}`);
-          output.desirableContact = preContact;
           break;
         } else {
           preContact.desirable = false;
@@ -106,6 +106,9 @@ async function findContactsForOneEvent(page) {
   }
 
   output.contacts = contacts;
+  output.desirableContact = contacts.find(c => c.desirable) || null;
+  const endTime = Date.now();
+  output.durationSec = (endTime - startTime)/1000;
 
   saveOutput(output, "contacts_for_one_event");
   await updateEventFlag(event.id, "auto_found_contacts", true);
@@ -113,12 +116,12 @@ async function findContactsForOneEvent(page) {
 }
 
 async function findContacts(numEvents) {
+  const overallStart = Date.now();
   let {context, page} = await openZoomInfoSearch();
   const allOutputs = [];
-  let finalOutput = {};
 
   for (let i = 0; i < numEvents; i++) {
-    console.log(`Processing event ${i + 1} of ${numEvents}`);
+    console.log(`\n========================================================\nProcessing event ${i + 1} of ${numEvents}`);
     const result = await findContactsForOneEvent(page);
 
     page = result.page;
@@ -127,14 +130,32 @@ async function findContacts(numEvents) {
 
   await closeZoomInfo(context);
 
-  finalOutput.totalEvents = allOutputs.length;
-  finalOutput.totalContacts = allOutputs.reduce((sum, o) => sum + o.contacts.length, 0);
-  finalOutput.eventsWithDesirable = allOutputs.filter(o => o.desirableContact).length;
+  const overallEnd = Date.now();
+  const totalTimeMin = (overallEnd - overallStart)/1000/60;
+  const avgTimeSec = totalTimeMin / allOutputs.length * 60;
 
-  console.log("===== Final Report =====");
+  const finalOutput = {
+    totalEvents: allOutputs.length,
+    totalContacts: allOutputs.reduce((sum, o) => sum + o.contacts.length, 0),
+    eventsWithDesirable: allOutputs.filter(o => o.desirableContact).length,
+    totalTimeMin,
+    avgTimeSec,
+    events: allOutputs.map(o => ({
+      id: o.event.id,
+      name: o.event.event_name,
+      contactsFound: o.contacts.length,
+      desirableContact: o.desirableContact?.id || null, // <-- safe
+      durationSec: o.durationSec
+    }))
+  };
+
+  console.log(`\n===== Final Report =====`);
   console.log("Events processed:", finalOutput.totalEvents);
   console.log("Contacts found:", finalOutput.totalContacts);
   console.log("Events with desirable contact:", finalOutput.eventsWithDesirable);
+  console.log("Total time (min):", finalOutput.totalTimeMin);
+  console.log("Average time per event (sec):", finalOutput.avgTimeSec)
+  console.table(finalOutput.events); // nice table view in terminal
   saveOutput(finalOutput, "found_contacts");
 }
 
