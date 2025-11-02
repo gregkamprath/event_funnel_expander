@@ -3,6 +3,8 @@ dotenv.config({ path: './src/.env' });
 import { chromium } from "playwright";
 import { getNextEventToAutoFindContacts, updateEventFlag, splitFullName, verifyEmail, getOrCreateContact, checkTitle, associateWithEvent } from './rails.js';
 import { openZoomInfoSearch, enterZoomInfoSearchParameters, grabContactsFromZoomInfoSearchResults, closeZoomInfo, clearAllFilters } from './zoomInfo.js';
+import { saveOutput  } from './files.js';
+
 
 // Get number of events from CLI, default to 1
 const numEvents = parseInt(process.argv[2], 10) || 1;
@@ -19,8 +21,10 @@ async function checkEmailBeforeSaving(email) {
 }
 
 async function findContactsForOneEvent(page) {
+  let output = {};
   const event = await getNextEventToAutoFindContacts();
-  console.log("Target Event:", event);
+  output.event = event;
+  console.log(`Target Event: ${event.id} - ${event.event_name}`);
 
   await clearAllFilters(page);
 
@@ -30,8 +34,6 @@ async function findContactsForOneEvent(page) {
 
   page = await enterZoomInfoSearchParameters(page, event.account.website, titleWords);
   ({page, preContacts} = await grabContactsFromZoomInfoSearchResults(page, event));
-  console.log("preContacts:")
-  console.log(preContacts);
 
   // If no results, retry with different title
   if(preContacts.length === 0) {
@@ -65,8 +67,8 @@ async function findContactsForOneEvent(page) {
           preContact.desirable = false; // or true, depending on your fallback logic
         } else if (!titleIsUndesirable) {
           preContact.desirable = true;
-          console.log(`This contact is desirable`);
-          console.log(preContact);
+          console.log(`This contact is desirable: ${preContact.full_name}`);
+          output.desirableContact = preContact;
           break;
         } else {
           preContact.desirable = false;
@@ -103,10 +105,9 @@ async function findContactsForOneEvent(page) {
     }
   }
 
+  output.contacts = contacts;
 
-  console.log("Results:");
-  console.log(contacts);
-
+  saveOutput(output, "contacts_for_one_event");
   await updateEventFlag(event.id, "auto_found_contacts", true);
   return page;
 }

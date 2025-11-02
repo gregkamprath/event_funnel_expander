@@ -170,3 +170,15 @@ export function saveLoopsOutput(output) {
   fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
   console.log(`Saved all loops output to ${finalJsonPath}`);
 }
+
+export function saveOutput(output, fileName) {
+  const { time } = getDateParts();
+  const dirPath = getDatePath();
+
+  fs.mkdirSync(dirPath, { recursive: true });
+
+  const finalJsonPath = path.join(dirPath, `${time}_${fileName}.json`);
+
+  fs.writeFileSync(finalJsonPath, JSON.stringify(output, null, 2), "utf-8");
+  console.log(`Saved output to ${finalJsonPath}`);
+}
