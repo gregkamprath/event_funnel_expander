@@ -104,7 +104,10 @@ export async function associateWithEvent(id, event_id) {
 export async function createReading(readingData) {
   const response = await fetch(`${BASE_URL}/readings.json`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "Accept": "application/json" 
+    },
     body: JSON.stringify({ reading: readingData })
   });
 
