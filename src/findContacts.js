@@ -21,7 +21,8 @@ import {
   enterZoomInfoSearchParameters,
   grabContactsFromZoomInfoSearchResults,
   closeZoomInfo,
-  clearAllFilters
+  clearAllFilters,
+  randomDelay
 } from "./zoomInfo.js";
 
 import { saveOutput } from "./files.js";
@@ -56,6 +57,7 @@ async function findContactsForOneEvent(page) {
   // If no results, retry with different title
   if(preContacts.length === 0) {
     console.log('No contacts found for initial titles, retrying with "marketing"...');
+    await randomDelay(1000, 2000);
     titleWords = ["marketing"];
     page = await enterZoomInfoSearchParameters(page, event.account.website, titleWords);
     ({page, preContacts} = await grabContactsFromZoomInfoSearchResults(page, event));
@@ -138,6 +140,7 @@ async function findContacts(numEvents) {
   const allOutputs = [];
 
   for (let i = 0; i < numEvents; i++) {
+    await randomDelay(1500, 4000);
     console.log(`\n========================================================\nProcessing event ${i + 1} of ${numEvents}`);
     const result = await findContactsForOneEvent(page);
 

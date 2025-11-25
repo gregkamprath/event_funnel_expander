@@ -28,7 +28,7 @@ function normalizeWebsite(url) {
   }
 }
 
-function randomDelay(min = 500, max = 1500) {
+export function randomDelay(min = 500, max = 1500) {
   return new Promise(resolve => {
     const timeout = Math.floor(Math.random() * (max - min + 1)) + min;
     setTimeout(resolve, timeout);
@@ -75,9 +75,13 @@ export async function clearAllFilters(page) {
 
 
 export async function enterZoomInfoSearchParameters(page, website, titleWords) {
+    await randomDelay(1000, 2000);
+
     // Open "Company Name" filter
     await page.waitForSelector('button[data-automation-id="companyNameUrlTicker_label"]', { state: "visible" });
     await page.click('button[data-automation-id="companyNameUrlTicker_label"]');
+
+    await randomDelay(1000, 2000);
 
     // Input field inside autocomplete
     const inputSelector = 'zic-auto-complete input[placeholder="Enter company name, URL or ticker"]';
@@ -97,6 +101,7 @@ export async function enterZoomInfoSearchParameters(page, website, titleWords) {
     await page.keyboard.press("Enter");
 
     // Wait for and click the "Job Title & Role" filter button
+    await randomDelay(1000, 2000);
     await page.waitForSelector('button[data-automation-id="currentRole_label"]', { state: "visible" });
     await page.click('button[data-automation-id="currentRole_label"]');
 
@@ -107,8 +112,8 @@ export async function enterZoomInfoSearchParameters(page, website, titleWords) {
     // Focus on the input
     const titleInput = await page.$(jobTitleInputSelector);
 
-
     for (const title of titleWords) {
+        await randomDelay(1000, 2000);
         await titleInput.type(title, { delay: 50 }); // type the word
         await page.keyboard.press("Enter");     // confirm with Enter
         await page.waitForTimeout(200);         // small delay to ensure it's processed
@@ -138,6 +143,7 @@ export async function sortResults(page) {
     // Try sorting
     try {
         await sortDropdown.click();
+        await randomDelay(1000, 2000);
 
         const sortDialog = page.locator('.sort-dropdown-dialog[role="dialog"]');
         await sortDialog.waitFor({ state: 'visible', timeout: 5000 });
@@ -183,6 +189,8 @@ export async function grabContactsFromZoomInfoSearchResults(page) {
 
         console.log(`Found ${visibleCount} visible rows out of ${totalCount} total rows`);
 
+        await randomDelay(1000, 2000);
+
         for (let i = 0; i < visibleCount; i++) {
             let preContact = {};
             console.log(`i value is: ${i}`);
@@ -199,7 +207,7 @@ export async function grabContactsFromZoomInfoSearchResults(page) {
 
             // Wait for Quick View panel to appear
             await page.getByRole('heading', { name: 'Quick View' }).waitFor();
-            await randomDelay(1500, 3000);
+            await randomDelay(2000, 4000);
 
             preContact.full_name = await page.locator('h2[data-automation-id="person-details-name"]').innerText();
             const { first_name, last_name } = await splitFullName(preContact.full_name);
