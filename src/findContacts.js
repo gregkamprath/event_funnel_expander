@@ -1,13 +1,30 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: './src/.env' });
+import readline from "node:readline";
+import process from "node:process";
+import dotenv from "dotenv";
+dotenv.config({ path: "./src/.env" });
+
 import { chromium } from "playwright";
-import { getNextEventToAutoFindContacts, updateEventFlag, splitFullName, verifyEmail, getOrCreateContact, checkTitle, associateWithEvent } from './rails.js';
-import { openZoomInfoSearch, enterZoomInfoSearchParameters, grabContactsFromZoomInfoSearchResults, closeZoomInfo, clearAllFilters } from './zoomInfo.js';
-import { saveOutput  } from './files.js';
+
+import {
+  getNextEventToAutoFindContacts,
+  updateEventFlag,
+  splitFullName,
+  verifyEmail,
+  getOrCreateContact,
+  checkTitle,
+  associateWithEvent
+} from "./rails.js";
 
 
-// Get number of events from CLI, default to 1
-const numEvents = parseInt(process.argv[2], 10) || 1;
+import {
+  openZoomInfoSearch,
+  enterZoomInfoSearchParameters,
+  grabContactsFromZoomInfoSearchResults,
+  closeZoomInfo,
+  clearAllFilters
+} from "./zoomInfo.js";
+
+import { saveOutput } from "./files.js";
 
 async function checkEmailBeforeSaving(email) {
   try {
@@ -159,6 +176,36 @@ async function findContacts(numEvents) {
   saveOutput(finalOutput, "found_contacts");
 }
 
-findContacts(numEvents)
-  .then(() => console.log("Done processing events."))
-  .catch(err => console.error("Error in findContacts:", err));
+function askQuestion(query) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise(resolve => {
+    rl.question(query, answer => {
+      rl.close();
+      resolve(answer.trim().toLowerCase());
+    });
+  });
+}
+
+async function start() {
+  const answer = await askQuestion("Is the VPN turned off? (y/n): ");
+
+  if (answer !== "y") {
+    console.log("Please turn off the VPN and try again.");
+    process.exit(1);
+  }
+
+  const numEvents = parseInt(process.argv[2], 10) || 1;
+
+  try {
+    await findContacts(numEvents);
+    console.log("Done processing events.");
+  } catch (err) {
+    console.error("Error in findContacts:", err);
+  }
+}
+
+start();

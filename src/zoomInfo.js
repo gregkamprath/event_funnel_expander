@@ -1,6 +1,17 @@
 import { chromium } from "playwright";
 import { splitFullName } from './rails.js';
 
+function containsFiveXs(value) {
+  return typeof value === "string" && /x{5}/i.test(value);
+}
+
+function exitIfRedacted(value) {
+  if (containsFiveXs(value)) {
+    console.log("❌ Detected redacted contact info (XXXXX). Exiting script.");
+    process.exit(1);
+  }
+}
+
 function normalizeWebsite(url) {
   if (!url) return "";
 
@@ -172,16 +183,6 @@ export async function grabContactsFromZoomInfoSearchResults(page) {
 
         console.log(`Found ${visibleCount} visible rows out of ${totalCount} total rows`);
 
-        // const preliminaryResults = [];
-        // for (let i = 0; i < count; i++) {
-        //   const row = rows.nth(i);
-        //   const prelimName = await row.locator('a[data-automation-id="contact-column-contact-name"] span[data-automation-id="card-name"]').innerText();
-        //   const prelimJobTitle = await row.locator('div.job-title__container span[data-automation-id="card-name"]').innerText();
-        //   const prelimCompany = await row.locator('div.company-name-container a span[data-automation-id="card-name"]').innerText();
-        //   const prelimAccuracy = await row.locator('zi-confidence-score .tooltip-content').innerText();
-        //   preliminaryResults.push({ prelimName, prelimJobTitle, prelimCompany, prelimAccuracy });
-        // }
-
         for (let i = 0; i < visibleCount; i++) {
             let preContact = {};
             console.log(`i value is: ${i}`);
@@ -232,25 +233,30 @@ export async function grabContactsFromZoomInfoSearchResults(page) {
             const emailBlock = page.locator('zi-entity-data[aria-label="Business Email"] a');
             if (await emailBlock.count() > 0) {
                 preContact.email = await emailBlock.first().innerText();
+                exitIfRedacted(preContact.email);
             }
 
             preContact.direct_phone = null;
             const directPhoneBlock = page.locator('zi-entity-data[aria-label="Direct Phone"] a');
             if (await directPhoneBlock.count() > 0) {
                 preContact.direct_phone = await directPhoneBlock.first().innerText();
+                exitIfRedacted(preContact.direct_phone);
             }
 
             preContact.mobile_phone = null;
             const mobilePhoneBlock = page.locator('zi-entity-data[aria-label="Mobile Phone"] a');
             if (await mobilePhoneBlock.count() > 0) {
                 preContact.mobile_phone = await mobilePhoneBlock.first().innerText();
+                exitIfRedacted(preContact.mobile_phone);
             }
 
             preContact.general_phone = null;
             const generalPhoneBlock = page.locator('zi-entity-data[aria-label="HQ Phone"] a');
             if (await generalPhoneBlock.count() > 0) {
                 preContact.general_phone = await generalPhoneBlock.first().innerText();
+                exitIfRedacted(preContact.general_phone);
             }
+
             preContacts.push(preContact);
         }
     }
