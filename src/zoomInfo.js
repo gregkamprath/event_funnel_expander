@@ -74,7 +74,13 @@ export async function clearAllFilters(page) {
 
 
 
-export async function enterZoomInfoSearchParameters(page, website, titleWords) {
+export async function enterZoomInfoSearchParameters(
+    page, 
+    website, 
+    titleWords, 
+    name = null,
+    companyName = null
+) {
     await randomDelay(1000, 2000);
 
     // Open "Company Name" filter
@@ -89,34 +95,62 @@ export async function enterZoomInfoSearchParameters(page, website, titleWords) {
 
     await input.waitFor({ state: "visible" });
 
-    // Usage in your playwright code
-    const cleanedWebsite = normalizeWebsite(website);
+    // Determine what to type
+    let inputValue = "";
+    if (website && website.trim() !== "") {
+        inputValue = normalizeWebsite(website);
+    } else if (companyName && companyName.trim() !== "") {
+        inputValue = companyName;
+    }
 
-    // Type normalized website into field
-    await input.click({ force: true });
-    await input.fill(""); // clear any existing value
-    await input.type(cleanedWebsite, { delay: 50 });
-
-    // Confirm with Enter
-    await page.keyboard.press("Enter");
+    // Type the value if non-empty
+    if (inputValue !== "") {
+        await input.click({ force: true });
+        await input.fill(""); // clear existing value
+        await input.type(inputValue, { delay: 50 });
+        await page.keyboard.press("Enter");
+    }
 
     // Wait for and click the "Job Title & Role" filter button
-    await randomDelay(1000, 2000);
-    await page.waitForSelector('button[data-automation-id="currentRole_label"]', { state: "visible" });
-    await page.click('button[data-automation-id="currentRole_label"]');
-
-    // Wait for the Job Title input to appear
-    const jobTitleInputSelector = 'input[data-automation-id="currentRole-filter-jobTitle-input"]';
-    await page.waitForSelector(jobTitleInputSelector, { state: "visible" });
-
-    // Focus on the input
-    const titleInput = await page.$(jobTitleInputSelector);
-
-    for (const title of titleWords) {
+    if (titleWords.length > 0) {
         await randomDelay(1000, 2000);
-        await titleInput.type(title, { delay: 50 }); // type the word
-        await page.keyboard.press("Enter");     // confirm with Enter
-        await page.waitForTimeout(200);         // small delay to ensure it's processed
+        await page.waitForSelector('button[data-automation-id="currentRole_label"]', { state: "visible" });
+        await page.click('button[data-automation-id="currentRole_label"]');
+
+        // Wait for the Job Title input to appear
+        const jobTitleInputSelector = 'input[data-automation-id="currentRole-filter-jobTitle-input"]';
+        await page.waitForSelector(jobTitleInputSelector, { state: "visible" });
+
+        // Focus on the input
+        const titleInput = await page.$(jobTitleInputSelector);
+
+        for (const title of titleWords) {
+            await randomDelay(1000, 2000);
+            await titleInput.type(title, { delay: 50 }); // type the word
+            await page.keyboard.press("Enter");     // confirm with Enter
+            await page.waitForTimeout(200);         // small delay to ensure it's processed
+        }
+    }
+
+    if (name != null && name.trim() !== "") {
+        await randomDelay(1000, 2000);
+        await page.waitForSelector('button[data-automation-id="contactName_label"]', { state: "visible" });
+        await page.click('button[data-automation-id="contactName_label"]');
+
+        // Input field
+        const input = page.locator(
+            '[data-automation-id="contact-name-input"] input'
+        ).first();
+
+        await input.waitFor({ state: "visible" });
+
+        // Type normalized website into field
+        await input.click({ force: true });
+        await input.fill(""); // clear any existing value
+        await input.type(name, { delay: 50 });
+
+        // Confirm with Enter
+        await page.keyboard.press("Enter");
     }
 
     return page;
@@ -163,9 +197,16 @@ export async function sortResults(page) {
     return {page, successful};
 }
 
-export async function grabContactsFromZoomInfoSearchResults(page) {
+export async function grabContactsFromZoomInfoSearchResults(page, shouldSort = true) {
+    // To do, make sort an optional step
     let successful = false;
-    ({page, successful} = await sortResults(page));
+    if (shouldSort == true) {
+        ({page, successful} = await sortResults(page));
+        successful = true 
+        // Thinking that I might be skipping results where there's only one contact. Should probably just sort and if it doesn't work then keep going
+    } else {
+        successful = true;
+    }
 
     let preContacts = [];
     if (successful) {

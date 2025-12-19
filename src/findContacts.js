@@ -15,7 +15,6 @@ import {
   associateWithEvent
 } from "./rails.js";
 
-
 import {
   openZoomInfoSearch,
   enterZoomInfoSearchParameters,
